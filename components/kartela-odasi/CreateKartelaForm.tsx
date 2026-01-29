@@ -40,7 +40,7 @@ export default function CreateKartelaForm({ onClose, onCreate }: CreateKartelaFo
       olusturma_tarihi: new Date().toISOString(),
       sorumlu_kisi: 'Kartela Odası Sorumlusu',
       telefon: '+90 555 000 0000',
-      notlar: formData.notras || null,
+      notlar: formData.notlar || null,
       recete_no: formData.recete_no || null,
       kumas_tipi: formData.kumas_tipi || null,
     }
