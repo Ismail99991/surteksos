@@ -107,14 +107,41 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
   const fetchStats = async () => {
     try {
-      // Mock stats for now
+      // Mock stats - gerçek supabase bağlantısı kurulunca açılacak
       setStats({
         total: 156,
         active: 89,
         archive: 42
       });
+      
+      /*
+      // Gerçek supabase sorguları (şimdilik kapalı)
+      const { count: total, error: totalError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false);
+
+      const { count: active, error: activeError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('durum', 'AKTIF');
+
+      const { count: archive, error: archiveError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('durum', 'KARTELA_ARSIV');
+
+      setStats({
+        total: total || 0,
+        active: active || 0,
+        archive: archive || 0
+      });
+      */
     } catch (error) {
-      console.error("İstatistik yüklenemedi:", error);
+      console.error('İstatistik yüklenemedi:', error);
+      // Fallback stats
       setStats({
         total: 0,
         active: 0,
@@ -122,16 +149,119 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
       });
     }
   };
-      });
-    } catch (error) {
-      console.error('İstatistik yüklenemedi:', error);
-    }
-  };
 
   const handleSearch = async () => {
     setLoading(true);
     
     try {
+      // Mock arama sonuçları - gerçek supabase bağlantısı kurulunca açılacak
+      const mockResults: Kartela[] = [
+        {
+          id: 1,
+          kartela_no: 'KT-2024-0001',
+          renk_kodu: '23011737.1',
+          renk_adi: 'KIRMIZI FUŞYA',
+          durum: 'AKTIF',
+          goz_sayisi: 5,
+          maksimum_goz: 14,
+          goz_dolum_orani: 35.71,
+          musteri_adi: 'BOYASAN BOYA',
+          proje_kodu: 'PROJ-001',
+          rpt_calismasi: null,
+          hucre_id: 3,
+          hucre_kodu: 'B-1700-1750',
+          toplam_kullanim_sayisi: 12,
+          son_kullanim_tarihi: '2024-01-15T10:30:00Z',
+          son_kullanan_kullanici_id: 2,
+          olusturan_kullanici_id: 1,
+          olusturulma_tarihi: '2024-01-01T08:00:00Z',
+          arsive_alma_tarihi: null,
+          arsive_alan_kullanici_id: null,
+          silindi: false,
+          silinme_tarihi: null,
+          silen_kullanici_id: null,
+          renk_masalari: {
+            pantone_kodu: 'PMS 1925 C',
+            hex_kodu: '#FF3366'
+          },
+          hucreler: {
+            hucre_kodu: 'B-1700-1750',
+            hucre_adi: 'B-1700-1750 Hücresi',
+            kapasite: 50,
+            mevcut_kartela_sayisi: 25
+          }
+        },
+        {
+          id: 2,
+          kartela_no: 'KT-2024-0002',
+          renk_kodu: '23011738.1',
+          renk_adi: 'MAVİ DENİZ',
+          durum: 'DOLU',
+          goz_sayisi: 14,
+          maksimum_goz: 14,
+          goz_dolum_orani: 100,
+          musteri_adi: 'AKSA POLİMER',
+          proje_kodu: 'PROJ-002',
+          rpt_calismasi: null,
+          hucre_id: 1,
+          hucre_kodu: 'B-1001-1050',
+          toplam_kullanim_sayisi: 8,
+          son_kullanim_tarihi: '2024-01-14T14:20:00Z',
+          son_kullanan_kullanici_id: 3,
+          olusturan_kullanici_id: 1,
+          olusturulma_tarihi: '2024-01-02T09:15:00Z',
+          arsive_alma_tarihi: null,
+          arsive_alan_kullanici_id: null,
+          silindi: false,
+          silinme_tarihi: null,
+          silen_kullanici_id: null,
+          renk_masalari: {
+            pantone_kodu: 'PMS 2925 C',
+            hex_kodu: '#3399FF'
+          },
+          hucreler: {
+            hucre_kodu: 'B-1001-1050',
+            hucre_adi: 'B-1001-1050 Hücresi',
+            kapasite: 50,
+            mevcut_kartela_sayisi: 30
+          }
+        }
+      ];
+      
+      // Filtreleme
+      let filteredResults = mockResults;
+      
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filteredResults = mockResults.filter(k => 
+          k.renk_kodu.toLowerCase().includes(query) ||
+          k.renk_adi.toLowerCase().includes(query) ||
+          k.kartela_no.toLowerCase().includes(query) ||
+          (k.renk_kodu.includes('1737') && query.includes('1737'))
+        );
+      }
+      
+      if (filterDurum) {
+        const durumMap: Record<string, string> = {
+          'aktif': 'AKTIF',
+          'dolu': 'DOLU',
+          'arsivde': 'KARTELA_ARSIV'
+        };
+        const dbDurum = durumMap[filterDurum];
+        if (dbDurum) {
+          filteredResults = filteredResults.filter(k => k.durum === dbDurum);
+        }
+      }
+      
+      setSonuclar(filteredResults);
+      
+      console.log(`[${currentRoom}] Arama:`, {
+        arama: searchQuery,
+        bulunan: filteredResults.length
+      });
+
+      /*
+      // Gerçek supabase sorgusu (şimdilik kapalı)
       let query = supabase
         .from('kartelalar')
         .select(`
@@ -150,49 +280,27 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         .eq('silindi', false)
         .order('olusturulma_tarihi', { ascending: false });
 
-      // Arama sorgusu
       if (searchQuery.trim()) {
-        // Renk kodu ara (23011737.1'den 1737 çıkar)
-        const extractedNumber = searchQuery.match(/\d{4}(\d{4})\.\d/);
-        const searchNumber = extractedNumber ? extractedNumber[1] : searchQuery;
-        
         query = query.or(`
           renk_kodu.ilike.%${searchQuery}%,
           renk_adi.ilike.%${searchQuery}%,
           kartela_no.ilike.%${searchQuery}%,
-          renk_kodu.ilike.%${searchNumber}%,
           musteri_adi.ilike.%${searchQuery}%
         `);
       }
 
-      // Durum filtresi
       if (filterDurum) {
-        // Mapping: aktif -> AKTIF, arsivde -> KARTELA_ARSIV, vs.
-        const durumMap: Record<string, string> = {
-          'aktif': 'AKTIF',
-          'dolu': 'DOLU',
-          'arsivde': 'KARTELA_ARSIV',
-          'kalitede': 'KALITE_ARSIV',
-          'kullanim_disi': 'KULLANIM_DISI'
-        };
-        
-        const dbDurum = durumMap[filterDurum] || filterDurum.toUpperCase();
-        query = query.eq('durum', dbDurum);
+        query = query.eq('durum', filterDurum.toUpperCase());
       }
 
       const { data, error } = await query.limit(50);
-
       if (error) throw error;
-
       setSonuclar(data || []);
-      
-      console.log(`[${currentRoom}] Arama:`, {
-        arama: searchQuery,
-        bulunan: data?.length || 0
-      });
+      */
 
     } catch (error) {
       console.error('Arama hatası:', error);
+      setSonuclar([]);
     } finally {
       setLoading(false);
     }
@@ -228,8 +336,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
       'DOLU': { bg: 'bg-blue-100', text: 'text-blue-800', label: '🔵 Dolu (Arşiv Bekliyor)' },
       'KARTELA_ARSIV': { bg: 'bg-gray-100', text: 'text-gray-800', label: '📦 Kartela Arşivi' },
       'KALITE_ARSIV': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: '🏷️ Kalite Arşivi' },
-      'KULLANIM_DISI': { bg: 'bg-red-100', text: 'text-red-800', label: '⛔ Kullanım Dışı' },
-      'LAB_DEĞERLENDİRME': { bg: 'bg-pink-100', text: 'text-pink-800', label: '🔬 Lab Değerlendirme' }
+      'KULLANIM_DISI': { bg: 'bg-red-100', text: 'text-red-800', label: '⛔ Kullanım Dışı' }
     };
 
     const durumBilgi = durumlar[durum as keyof typeof durumlar] || 
@@ -243,8 +350,6 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
   };
 
   const getGozDurumu = (goz_sayisi: number) => {
-    const yuzde = (goz_sayisi / 14) * 100;
-    
     if (goz_sayisi === 0) {
       return { text: '🆕 Yeni (0/14)', color: 'text-gray-600' };
     } else if (goz_sayisi < 7) {
@@ -371,8 +476,8 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-14 w-14 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600 font-medium">Supabase veritabanında aranıyor...</p>
-            <p className="text-sm text-gray-500 mt-2">{currentRoom} • PostgreSQL</p>
+            <p className="mt-4 text-gray-600 font-medium">Kartelalar aranıyor...</p>
+            <p className="text-sm text-gray-500 mt-2">{currentRoom} • Mock Veritabanı</p>
           </div>
         )}
 
@@ -389,8 +494,8 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                 <span className="ml-3 text-blue-600">({sonuclar.length})</span>
               </h4>
               <div className="text-sm text-gray-500 flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Supabase PostgreSQL
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                Mock Veritabanı (Supabase bağlantısı kurulacak)
               </div>
             </div>
             
@@ -486,7 +591,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             <p className="text-xl font-medium">"{searchQuery}" için sonuç bulunamadı</p>
             <p className="text-gray-600 mt-2">Farklı bir renk kodu, kartela no veya renk adı deneyin</p>
             <div className="mt-6 text-sm text-gray-400">
-              📍 {currentRoom} • Supabase PostgreSQL
+              📍 {currentRoom} • Mock Veritabanı
             </div>
           </div>
         )}
