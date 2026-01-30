@@ -5,6 +5,7 @@ import { Factory, LogOut, User, DoorOpen, Database } from 'lucide-react'
 import RoomAccess from '@/components/room/RoomAccess'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaOdaDashboard from '@/components/kartela-odasi/KartelaOdaDashboard'
+import YoneticiDashboard from '@/components/yonetici-odasi/YoneticiDashboard'
 import { api } from '@/lib/api'
 
 export default function HomePage() {
@@ -165,16 +166,10 @@ export default function HomePage() {
           /* ODALARA ÖZEL İÇERİK */
           <div>
             {currentRoom.name === 'Kartela Odası' ? (
-              /* KARTELA ODASI DASHBOARD */
-             if (currentRoom.name === 'Kartela Odası') {
-             return <KartelaOdaDashboard roomName={currentRoom.name} />;
-             } else if (currentRoom.name === 'Yönetici Odası') {
-              return <YoneticiDashboard roomName={currentRoom.name} />;
-             } else {
-               return <KartelaSearch currentRoom={currentRoom.name} />;
-             }
+              <KartelaOdaDashboard roomName={currentRoom.name} />
+            ) : currentRoom.name === 'Yönetici Odası' ? (
+              <YoneticiDashboard roomName={currentRoom.name} />
             ) : (
-              /* DİĞER ODALAR İÇİN KARTELA ARAMA */
               <div className="space-y-8">
                 {/* Hoş Geldin */}
                 <div className="text-center py-8">
