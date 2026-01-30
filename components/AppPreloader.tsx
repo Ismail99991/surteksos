@@ -68,7 +68,7 @@ const AppPreloader: React.FC<AppPreloaderProps> = ({
               className="palette-svg"
             >
               <rect x="8" y="8" width="48" height="48" rx="8" fill="none" stroke="#1890ff" strokeWidth="3" />
-              <circle cx="24" cx="24" r="6" fill="#ff4d4f" />
+              <circle cx="24" cy="24" r="6" fill="#ff4d4f" />
               <circle cx="40" cy="24" r="6" fill="#52c41a" />
               <circle cx="24" cy="40" r="6" fill="#faad14" />
               <circle cx="40" cy="40" r="6" fill="#722ed1" />
