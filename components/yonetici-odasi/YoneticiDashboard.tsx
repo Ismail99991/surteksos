@@ -7,7 +7,7 @@ import {
   Settings, Users, DoorOpen, KeyRound, Archive
 } from 'lucide-react';
 
-// Mock kullanıcı verileri - Ahmet Amir'e Yönetici Odası yetkisi eklendi
+// Mock kullanıcı verileri
 const mockKullanicilar = [
   {
     id: 'USER-AHMET-001',
@@ -50,17 +50,13 @@ const mockKullanicilar = [
     ad: 'Sistem Yöneticisi',
     unvan: 'Yönetici',
     odalar: ['Amir Odası', 'Kartela Odası', 'Üretim Alanı', 'Depo', 'Yönetici Odası'],
-    yetkiler: [
-      'tum_oda_giris', 'kullanici_yonet', 'yetki_ata', 'rapor_al', 'sistem_ayar',
-      'oda_olustur', 'kullanici_sil', 'log_goruntule', 'backup_al', 'kartela_olustur',
-      'kartela_sifirla', 'kartela_ara', 'musteri_ata', 'uretim_kaydi', 'depo_kaydi'
-    ],
+    yetkiler: ['tum_oda_giris', 'kullanici_yonet', 'yetki_ata', 'rapor_al', 'sistem_ayar'],
     durum: 'aktif',
     sonGiris: '2024-01-25T08:00:00Z'
   }
 ];
 
-// Oda listesi - Yönetici Odası eklendi
+// Oda listesi
 const odalar = [
   'Amir Odası',
   'Kartela Odası', 
@@ -69,47 +65,17 @@ const odalar = [
   'Yönetici Odası'
 ];
 
-// Tüm yetki listesi - Yönetici için tam yetkiler
+// Yetki listesi
 const yetkiler = [
-  // Temel Yetkiler
-  { id: 'tum_oda_giris', ad: 'Tüm Odalara Giriş', aciklama: 'Tüm odalara erişim izni', kategori: 'temel' },
-  { id: 'kartela_olustur', ad: 'Kartela Oluştur', aciklama: 'Yeni kartela oluşturabilir', kategori: 'kartela' },
-  { id: 'kartela_sifirla', ad: 'Kartela Sıfırla', aciklama: 'Kartela sıfırlayabilir', kategori: 'kartela' },
-  { id: 'kartela_ara', ad: 'Kartela Arama', aciklama: 'Kartela araması yapabilir', kategori: 'kartela' },
-  { id: 'musteri_ata', ad: 'Müşteri Ata', aciklama: 'Kartelaya müşteri atayabilir', kategori: 'kartela' },
-  
-  // Kullanıcı Yönetimi
-  { id: 'kullanici_yonet', ad: 'Kullanıcı Yönet', aciklama: 'Kullanıcı ekleyebilir/silebilir', kategori: 'kullanici' },
-  { id: 'yetki_ata', ad: 'Yetki Ata', aciklama: 'Kullanıcılara yetki atayabilir', kategori: 'kullanici' },
-  { id: 'kullanici_sil', ad: 'Kullanıcı Sil', aciklama: 'Kullanıcı hesabını silebilir', kategori: 'kullanici' },
-  { id: 'sifre_sifirla', ad: 'Şifre Sıfırla', aciklama: 'Kullanıcı şifresini sıfırlayabilir', kategori: 'kullanici' },
-  
-  // Oda Yönetimi
-  { id: 'oda_olustur', ad: 'Oda Oluştur', aciklama: 'Yeni oda oluşturabilir', kategori: 'oda' },
-  { id: 'oda_duzenle', ad: 'Oda Düzenle', aciklama: 'Oda bilgilerini düzenleyebilir', kategori: 'oda' },
-  { id: 'oda_sil', ad: 'Oda Sil', aciklama: 'Odayı silebilir', kategori: 'oda' },
-  
-  // Sistem Yönetimi
-  { id: 'sistem_ayar', ad: 'Sistem Ayarları', aciklama: 'Sistem ayarlarını değiştirebilir', kategori: 'sistem' },
-  { id: 'rapor_al', ad: 'Rapor Al', aciklama: 'Sistem raporları alabilir', kategori: 'sistem' },
-  { id: 'log_goruntule', ad: 'Log Görüntüle', aciklama: 'Sistem loglarını görüntüleyebilir', kategori: 'sistem' },
-  { id: 'backup_al', ad: 'Backup Al', aciklama: 'Sistem yedeği alabilir', kategori: 'sistem' },
-  { id: 'yonetici_panel', ad: 'Yönetici Paneli', aciklama: 'Yönetici paneline erişebilir', kategori: 'sistem' },
-  
-  // Operasyonel Yetkiler
-  { id: 'uretim_kaydi', ad: 'Üretim Kaydı', aciklama: 'Üretim kaydı oluşturabilir', kategori: 'operasyon' },
-  { id: 'depo_kaydi', ad: 'Depo Kaydı', aciklama: 'Depo kaydı oluşturabilir', kategori: 'operasyon' },
-  { id: 'stok_yonet', ad: 'Stok Yönetimi', aciklama: 'Stok yönetimi yapabilir', kategori: 'operasyon' }
-];
-
-// Yetki kategorilerine göre grupla
-const yetkiKategorileri = [
-  { id: 'temel', ad: 'Temel Yetkiler', icon: KeyRound },
-  { id: 'kartela', ad: 'Kartela Yetkileri', icon: Archive },
-  { id: 'kullanici', ad: 'Kullanıcı Yönetimi', icon: Users },
-  { id: 'oda', ad: 'Oda Yönetimi', icon: DoorOpen },
-  { id: 'sistem', ad: 'Sistem Yönetimi', icon: Settings },
-  { id: 'operasyon', ad: 'Operasyonel Yetkiler', icon: Building }
+  { id: 'tum_oda_giris', ad: 'Tüm Odalara Giriş', aciklama: 'Tüm odalara erişim izni' },
+  { id: 'kartela_olustur', ad: 'Kartela Oluştur', aciklama: 'Yeni kartela oluşturabilir' },
+  { id: 'kartela_sifirla', ad: 'Kartela Sıfırla', aciklama: 'Kartela sıfırlayabilir' },
+  { id: 'kartela_ara', ad: 'Kartela Arama', aciklama: 'Kartela araması yapabilir' },
+  { id: 'musteri_ata', ad: 'Müşteri Ata', aciklama: 'Kartelaya müşteri atayabilir' },
+  { id: 'kullanici_yonet', ad: 'Kullanıcı Yönet', aciklama: 'Kullanıcı ekleyebilir/silebilir' },
+  { id: 'yetki_ata', ad: 'Yetki Ata', aciklama: 'Kullanıcılara yetki atayabilir' },
+  { id: 'rapor_al', ad: 'Rapor Al', aciklama: 'Sistem raporları alabilir' },
+  { id: 'sistem_ayar', ad: 'Sistem Ayarları', aciklama: 'Sistem ayarlarını değiştirebilir' }
 ];
 
 interface YoneticiDashboardProps {
@@ -129,8 +95,6 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
     odalar: [] as string[],
     yetkiler: [] as string[]
   });
-  const [showOdaModal, setShowOdaModal] = useState(false);
-  const [yeniOdaAdi, setYeniOdaAdi] = useState('');
 
   // Kullanıcı arama
   const filteredUsers = kullanicilar.filter(user =>
@@ -189,7 +153,7 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
     } else {
       // Yeni kullanıcı
       const newUserObj = {
-        id: `USER-${Date.now().toString().slice(-6)}`,
+        id: `USER-${Date.now()}`,
         ...newUser,
         durum: 'aktif',
         sonGiris: new Date().toISOString()
@@ -197,16 +161,6 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
       setKullanicilar(prev => [...prev, newUserObj]);
     }
     setShowUserModal(false);
-  };
-
-  // Kullanıcı sil
-  const deleteUser = (userId: string) => {
-    if (confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?')) {
-      setKullanicilar(prev => prev.filter(user => user.id !== userId));
-      if (selectedUser?.id === userId) {
-        setSelectedUser(null);
-      }
-    }
   };
 
   // Yetki modal'ını aç
@@ -232,36 +186,6 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
     setSelectedUser({ ...selectedUser, yetkiler: updatedYetkiler });
   };
 
-  // Tüm yetkileri ver
-  const tumYetkileriVer = () => {
-    if (!selectedUser) return;
-    
-    const tumYetkiIds = yetkiler.map(y => y.id);
-    setKullanicilar(prev => prev.map(user =>
-      user.id === selectedUser.id
-        ? { ...user, yetkiler: tumYetkiIds }
-        : user
-    ));
-    
-    setSelectedUser({ ...selectedUser, yetkiler: tumYetkiIds });
-    alert('Tüm yetkiler verildi!');
-  };
-
-  // Tüm yetkileri kaldır
-  const tumYetkileriKaldir = () => {
-    if (!selectedUser) return;
-    
-    if (confirm('Tüm yetkileri kaldırmak istediğinize emin misiniz?')) {
-      setKullanicilar(prev => prev.map(user =>
-        user.id === selectedUser.id
-          ? { ...user, yetkiler: [] }
-          : user
-      ));
-      
-      setSelectedUser({ ...selectedUser, yetkiler: [] });
-    }
-  };
-
   // Oda ekle/kaldır
   const toggleOda = (oda: string) => {
     if (!selectedUser) return;
@@ -279,25 +203,10 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
     setSelectedUser({ ...selectedUser, odalar: updatedOdalar });
   };
 
-  // Yeni oda ekle
-  const yeniOdaEkle = () => {
-    if (yeniOdaAdi.trim() && !odalar.includes(yeniOdaAdi.trim())) {
-      odalar.push(yeniOdaAdi.trim());
-      setYeniOdaAdi('');
-      setShowOdaModal(false);
-      alert('Yeni oda eklendi: ' + yeniOdaAdi.trim());
-    }
-  };
-
   // Yetki adını getir
   const getYetkiAdi = (yetkiId: string) => {
     const yetki = yetkiler.find(y => y.id === yetkiId);
     return yetki ? yetki.ad : yetkiId;
-  };
-
-  // Yetki kategorisine göre filtrele
-  const getYetkilerByKategori = (kategoriId: string) => {
-    return yetkiler.filter(y => y.kategori === kategoriId);
   };
 
   return (
@@ -309,72 +218,60 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
             <Shield className="h-8 w-8 text-purple-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">🚀 Yönetici Kontrol Paneli</h1>
-            <p className="text-gray-600">Tam yetkili yönetici paneli - Tüm sistem kontrolü</p>
+            <h1 className="text-3xl font-bold text-gray-900">Yönetici Kontrol Paneli</h1>
+            <p className="text-gray-600">Kullanıcı yetkilerini ve oda erişimlerini yönetin</p>
           </div>
         </div>
         
         <div className="flex flex-wrap gap-4">
-          <div className="px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-            👑 Tam Yetkili Yönetici
-          </div>
           <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
             📍 {roomName}
           </div>
           <div className="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
             👥 {kullanicilar.length} Kullanıcı
           </div>
-          <div className="px-4 py-2 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-            🚨 Kritik Yetkiler Aktif
+          <div className="px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+            🔑 Sistem Yöneticisi
           </div>
         </div>
       </div>
 
-      {/* Üst Araç Çubuğu */}
+      {/* Arama ve Filtre */}
       <div className="bg-white rounded-xl shadow p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-3">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Kullanıcı adı, unvan veya ID ile ara..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-              />
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
             </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Kullanıcı adı, unvan veya ID ile ara..."
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+            />
           </div>
           
           <div className="flex gap-3">
             <button
-              onClick={() => setShowOdaModal(true)}
-              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
-            >
-              <DoorOpen className="h-4 w-4" />
-              Oda Ekle
-            </button>
-            <button
               onClick={openNewUserModal}
-              className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2"
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Kullanıcı Ekle
+              Yeni Kullanıcı
             </button>
           </div>
         </div>
       </div>
 
-      {/* Ana İçerik */}
+      {/* Kullanıcı Listesi */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sol: Kullanıcı Listesi */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl shadow overflow-hidden">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Kullanıcı Yönetimi</h2>
-              <p className="text-gray-600 text-sm">Kullanıcıları düzenleyin, yetkileri yönetin</p>
+              <h2 className="text-xl font-bold text-gray-900">Kullanıcı Listesi</h2>
+              <p className="text-gray-600 text-sm">Sistemdeki tüm kullanıcılar</p>
             </div>
             
             <div className="overflow-x-auto">
@@ -417,14 +314,14 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {user.odalar.slice(0, 3).map((oda) => (
+                          {user.odalar.slice(0, 2).map((oda) => (
                             <span key={oda} className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">
                               {oda}
                             </span>
                           ))}
-                          {user.odalar.length > 3 && (
+                          {user.odalar.length > 2 && (
                             <span className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs">
-                              +{user.odalar.length - 3}
+                              +{user.odalar.length - 2}
                             </span>
                           )}
                         </div>
@@ -461,35 +358,13 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              openYetkiModal(user);
-                            }}
-                            className="p-2 text-gray-600 hover:text-green-600"
-                            title="Yetki Yönet"
-                          >
-                            <Key className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
                               toggleUserStatus(user.id);
                             }}
-                            className="p-2 text-gray-600 hover:text-yellow-600"
+                            className="p-2 text-gray-600 hover:text-green-600"
                             title={user.durum === 'aktif' ? 'Pasif Yap' : 'Aktif Yap'}
                           >
                             {user.durum === 'aktif' ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                           </button>
-                          {user.id !== 'USER-YONETICI-001' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteUser(user.id);
-                              }}
-                              className="p-2 text-gray-600 hover:text-red-600"
-                              title="Sil"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -523,22 +398,6 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
                 </div>
               </div>
 
-              {/* Hızlı Yetki Butonları */}
-              <div className="mb-6 grid grid-cols-2 gap-2">
-                <button
-                  onClick={tumYetkileriVer}
-                  className="py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                >
-                  Tüm Yetkileri Ver
-                </button>
-                <button
-                  onClick={tumYetkileriKaldir}
-                  className="py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                >
-                  Tüm Yetkileri Kaldır
-                </button>
-              </div>
-
               {/* Oda Erişimleri */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
@@ -567,26 +426,21 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
                 </div>
               </div>
 
-              {/* Yetki Özeti */}
+              {/* Yetkiler */}
               <div>
-                <h4 className="font-semibold text-gray-900 mb-3">Yetki Özeti</h4>
-                <div className="space-y-3">
-                  {yetkiKategorileri.map((kategori) => {
-                    const kategoriYetkileri = selectedUser.yetkiler.filter((y: string) => 
-                      yetkiler.find(yt => yt.id === y)?.kategori === kategori.id
-                    );
-                    return (
-                      <div key={kategori.id} className="p-2 bg-gray-50 rounded">
-                        <div className="flex items-center gap-2 mb-1">
-                          <kategori.icon className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm font-medium">{kategori.ad}</span>
-                          <span className="ml-auto text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            {kategoriYetkileri.length}/{getYetkilerByKategori(kategori.id).length}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <h4 className="font-semibold text-gray-900 mb-3">Yetkiler</h4>
+                <div className="space-y-2">
+                  {selectedUser.yetkiler.slice(0, 5).map((yetkiId: string) => (
+                    <div key={yetkiId} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      <Key className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm">{getYetkiAdi(yetkiId)}</span>
+                    </div>
+                  ))}
+                  {selectedUser.yetkiler.length > 5 && (
+                    <div className="text-center text-sm text-gray-500">
+                      +{selectedUser.yetkiler.length - 5} yetki daha
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -605,33 +459,27 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
                 </div>
               </div>
 
-              {/* Detaylı Yönetim Butonları */}
-              <div className="mt-6 space-y-2">
+              {/* Aksiyon Butonları */}
+              <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => openYetkiModal(selectedUser)}
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  🎛️ Detaylı Yetki Yönetimi
+                  Yetki Yönet
                 </button>
                 <button
                   onClick={() => toggleUserStatus(selectedUser.id)}
-                  className="w-full py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  {selectedUser.durum === 'aktif' ? '🔒 Hesabı Pasifleştir' : '🔓 Hesabı Aktifleştir'}
+                  {selectedUser.durum === 'aktif' ? 'Pasif Yap' : 'Aktif Yap'}
                 </button>
               </div>
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow p-8 text-center">
-              <div className="text-4xl mb-4">👑</div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Yönetici Paneli</h3>
-              <p className="text-gray-600 mb-4">Soldaki listeden bir kullanıcı seçin.</p>
-              <div className="text-sm text-gray-500">
-                <p>✅ Yeni kullanıcı oluştur</p>
-                <p>✅ Oda yetkileri yönet</p>
-                <p>✅ Sistem yetkileri ata</p>
-                <p>✅ Kullanıcıları sil</p>
-              </div>
+              <div className="text-4xl mb-4">👤</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Kullanıcı Seçin</h3>
+              <p className="text-gray-600">Soldaki listeden bir kullanıcı seçerek detaylarını görüntüleyin.</p>
             </div>
           )}
         </div>
@@ -640,14 +488,14 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
       {/* Yeni Kullanıcı/Düzenle Modal */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    {editingUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı Oluştur'}
+                    {editingUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'}
                   </h2>
-                  <p className="text-gray-600">Kullanıcı bilgilerini girin ve yetkileri belirleyin</p>
+                  <p className="text-gray-600">Kullanıcı bilgilerini girin</p>
                 </div>
                 <button
                   onClick={() => setShowUserModal(false)}
@@ -657,51 +505,191 @@ export default function YoneticiDashboard({ roomName }: YoneticiDashboardProps) 
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Sol: Temel Bilgiler */}
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad *</label>
-                    <input
-                      type="text"
-                      value={newUser.ad}
-                      onChange={(e) => setNewUser({...newUser, ad: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                      placeholder="Ahmet Yılmaz"
-                      required
-                    />
-                  </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad</label>
+                  <input
+                    type="text"
+                    value={newUser.ad}
+                    onChange={(e) => setNewUser({...newUser, ad: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="Ahmet Yılmaz"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Unvan *</label>
-                    <select
-                      value={newUser.unvan}
-                      onChange={(e) => setNewUser({...newUser, unvan: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                      required
-                    >
-                      <option value="">Unvan Seçin</option>
-                      <option value="Yönetici">👑 Yönetici (Tam Yetki)</option>
-                      <option value="Amir">👔 Amir (Yönetim)</option>
-                      <option value="Kartela Sorumlusu">🎨 Kartela Sorumlusu</option>
-                      <option value="Üretim Sorumlusu">🏭 Üretim Sorumlusu</option>
-                      <option value="Depo Sorumlusu">📦 Depo Sorumlusu</option>
-                      <option value="Personel">👤 Personel (Sınırlı Yetki)</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Unvan</label>
+                  <select
+                    value={newUser.unvan}
+                    onChange={(e) => setNewUser({...newUser, unvan: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Unvan Seçin</option>
+                    <option value="Yönetici">Yönetici</option>
+                    <option value="Amir">Amir</option>
+                    <option value="Kartela Sorumlusu">Kartela Sorumlusu</option>
+                    <option value="Üretim Sorumlusu">Üretim Sorumlusu</option>
+                    <option value="Depo Sorumlusu">Depo Sorumlusu</option>
+                    <option value="Personel">Personel</option>
+                  </select>
+                </div>
 
+                <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Oda Erişimleri</label>
-                    <div className="space-y-2 max-h-60 overflow-y-auto p-3 border rounded-lg">
+                    <div className="space-y-2 max-h-48 overflow-y-auto p-2 border rounded">
                       {odalar.map((oda) => (
-                        <div key={oda} className="flex items-center gap-
-# app/page.tsx'te şu kısmı bul ve düzenle:
-cat > temp_patch.txt << 'EOF'
-// KartelaOdaDashboard kullanımını şu şekilde güncelle:
-{currentRoom.name === 'Kartela Odası' ? (
-  <KartelaOdaDashboard roomName={currentRoom.name} />
-) : currentRoom.name === 'Yönetici Odası' ? (
-  <YoneticiDashboard roomName={currentRoom.name} />
-) : (
-  <KartelaSearch currentRoom={currentRoom.name} />
-)}
+                        <div key={oda} className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={newUser.odalar.includes(oda)}
+                            onChange={(e) => {
+                              const updated = e.target.checked
+                                ? [...newUser.odalar, oda]
+                                : newUser.odalar.filter(o => o !== oda);
+                              setNewUser({...newUser, odalar: updated});
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm">{oda}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Yetkiler</label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto p-2 border rounded">
+                      {yetkiler.map((yetki) => (
+                        <div key={yetki.id} className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={newUser.yetkiler.includes(yetki.id)}
+                            onChange={(e) => {
+                              const updated = e.target.checked
+                                ? [...newUser.yetkiler, yetki.id]
+                                : newUser.yetkiler.filter(y => y !== yetki.id);
+                              setNewUser({...newUser, yetkiler: updated});
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          <div>
+                            <div className="text-sm font-medium">{yetki.ad}</div>
+                            <div className="text-xs text-gray-500">{yetki.aciklama}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t flex justify-end gap-3">
+                <button
+                  onClick={() => setShowUserModal(false)}
+                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={saveUser}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  {editingUser ? 'Güncelle' : 'Oluştur'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Yetki Yönetimi Modal */}
+      {showYetkiModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Yetki Yönetimi</h2>
+                  <p className="text-gray-600">{selectedUser.ad} için yetkileri düzenleyin</p>
+                </div>
+                <button
+                  onClick={() => setShowYetkiModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8">
+                {/* Oda Erişimleri */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Oda Erişimleri</h3>
+                  <div className="space-y-3">
+                    {odalar.map((oda) => (
+                      <div key={oda} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Building className="h-5 w-5 text-gray-500" />
+                          <span>{oda}</span>
+                        </div>
+                        <button
+                          onClick={() => toggleOda(oda)}
+                          className={`px-4 py-1 rounded-full text-sm font-medium ${
+                            selectedUser.odalar.includes(oda)
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-200 text-gray-800'
+                          }`}
+                        >
+                          {selectedUser.odalar.includes(oda) ? 'Erişim Var' : 'Erişim Yok'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Yetkiler */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Sistem Yetkileri</h3>
+                  <div className="space-y-3">
+                    {yetkiler.map((yetki) => (
+                      <div key={yetki.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <Key className="h-5 w-5 text-gray-500" />
+                            <div>
+                              <div className="font-medium">{yetki.ad}</div>
+                              <div className="text-sm text-gray-600">{yetki.aciklama}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => toggleYetki(yetki.id)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              selectedUser.yetkiler.includes(yetki.id)
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-200 text-gray-800'
+                            }`}
+                          >
+                            {selectedUser.yetkiler.includes(yetki.id) ? 'Aktif' : 'Pasif'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t flex justify-end">
+                <button
+                  onClick={() => setShowYetkiModal(false)}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Tamam
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

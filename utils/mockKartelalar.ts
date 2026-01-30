@@ -1,6 +1,6 @@
 import { Kartela, Lokasyon } from '@/types/kartela';
 
-// Mock lokasyonlar
+// Mock lokasyonlar (Yönetici Odası dahil)
 export const mockLokasyonlar: Record<string, Lokasyon> = {
   'KARTELA-ODA-001-A1': {
     oda: 'Kartela Odası',
@@ -31,6 +31,12 @@ export const mockLokasyonlar: Record<string, Lokasyon> = {
     raf: 'E Rafı',
     hucre: 'E4',
     tamAdres: 'Depo - E Rafı - E4'
+  },
+  'YONETICI-ODA-001-F1': {
+    oda: 'Yönetici Odası',
+    raf: 'F Rafı',
+    hucre: 'F1',
+    tamAdres: 'Yönetici Odası - F Rafı - F1'
   }
 };
 
@@ -163,15 +169,3 @@ export function kartelaAra(query: string): Kartela[] {
     (kartela.musteri && kartela.musteri.toLowerCase().includes(query.toLowerCase()))
   );
 }
-
-// Yönetici Odası lokasyonu ekle
-export const mockLokasyonlar: Record<string, Lokasyon> = {
-  // ... diğer lokasyonlar
-  'YONETICI-ODA-001-F1': {
-    oda: 'Yönetici Odası',
-    raf: 'F Rafı',
-    hucre: 'F1',
-    tamAdres: 'Yönetici Odası - F Rafı - F1'
-  },
-  // ... diğer lokasyonlar devam ediyor
-};
