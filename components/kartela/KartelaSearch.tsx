@@ -1,22 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Building, User, Eye, X, MapPin } from 'lucide-react';
-import { mockKartelalar } from '@/utils/mockKartelalar';
+import { createClient } from '@/lib/supabase/client';
 import KartelaDetay from './KartelaDetay';
-import type { Kartela } from '@/types/kartela';
+import type { Database } from '@/types/supabase';
+
+type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
+  renk_masalari?: {
+    pantone_kodu: string | null;
+    hex_kodu: string | null;
+  };
+  hucreler?: {
+    hucre_kodu: string;
+    hucre_adi: string;
+    kapasite: number;
+    mevcut_kartela_sayisi: number;
+  };
+};
 
 interface KartelaSearchProps {
   currentRoom: string;
+  currentUserId?: string;
 }
 
-export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
+export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDurum, setFilterDurum] = useState<string>('');
   const [sonuclar, setSonuclar] = useState<Kartela[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedKartela, setSelectedKartela] = useState<Kartela | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    archive: 0
+  });
+
+  const supabase = createClient();
 
   // Odaya göre başlık ve açıklama
   const odaBilgileri = {
@@ -24,25 +45,50 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
       icon: User,
       title: 'Amir Kartela İzleme',
       description: 'Tüm kartelaları görüntüleyebilir ve analiz edebilirsiniz.',
-      yetki: 'Tam Yetki'
+      yetki: 'Tam Yetki',
+      color: 'purple'
     },
     'Kartela Odası': {
       icon: Building,
       title: 'Kartela Arama Sistemi',
       description: 'Kartela barkodlarını taratın veya renk kodları ile arama yapın.',
-      yetki: 'Operasyonel Yetki'
+      yetki: 'Operasyonel Yetki',
+      color: 'blue'
     },
     'Üretim Alanı': {
       icon: Eye,
       title: 'Üretim Kartela Kontrol',
       description: 'Üretimdeki kartelaları kontrol edin.',
-      yetki: 'Üretim Yetkisi'
+      yetki: 'Üretim Yetkisi',
+      color: 'green'
     },
     'Depo': {
       icon: MapPin,
       title: 'Depo Kartela Takip',
       description: 'Depodaki kartelaları görüntüleyin.',
-      yetki: 'Depo Yetkisi'
+      yetki: 'Depo Yetkisi',
+      color: 'amber'
+    },
+    'Lab Odası': {
+      icon: Eye,
+      title: 'Lab Renk Analizi',
+      description: 'Renk analizi ve pantone atama.',
+      yetki: 'Lab Yetkisi',
+      color: 'pink'
+    },
+    'Kalite Kontrol': {
+      icon: Eye,
+      title: 'Kalite Kontrol',
+      description: 'Kalite kontrol ve onay işlemleri.',
+      yetki: 'Kalite Yetkisi',
+      color: 'indigo'
+    },
+    'Yönetici Odası': {
+      icon: User,
+      title: 'Yönetici Dashboard',
+      description: 'Sistem yönetimi ve raporlama.',
+      yetki: 'Yönetici Yetkisi',
+      color: 'red'
     }
   };
 
@@ -50,37 +96,112 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
     icon: Eye,
     title: 'Kartela Arama',
     description: 'Kartela bilgilerini görüntüleyin.',
-    yetki: 'Sınırlı Yetki'
+    yetki: 'Sınırlı Yetki',
+    color: 'gray'
   };
 
-  const handleSearch = () => {
-    if (searchQuery.length < 1 && !filterDurum) {
-      // Boş arama - tümünü getir
-      setSonuclar(mockKartelalar.slice(0, 6));
-      return;
+  // İstatistikleri getir
+  useEffect(() => {
+    fetchStats();
+  }, [currentRoom]);
+
+  const fetchStats = async () => {
+    try {
+      const { count: total } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false);
+
+      const { count: active } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('durum', 'AKTIF');
+
+      const { count: archive } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('durum', 'KARTELA_ARSIV');
+
+      setStats({
+        total: total || 0,
+        active: active || 0,
+        archive: archive || 0
+      });
+    } catch (error) {
+      console.error('İstatistik yüklenemedi:', error);
     }
-    
+  };
+
+  const handleSearch = async () => {
     setLoading(true);
     
-    setTimeout(() => {
-      const filtered = mockKartelalar.filter(kartela => {
-        const renkKoduMatch = kartela.renkKodu.includes(searchQuery);
-        const tamKartelaMatch = kartela.kartelaNo.includes(searchQuery);
-        const renkAdiMatch = kartela.renkAdi.toLowerCase().includes(searchQuery.toLowerCase());
-        const durumMatch = filterDurum ? kartela.durum === filterDurum : true;
+    try {
+      let query = supabase
+        .from('kartelalar')
+        .select(`
+          *,
+          renk_masalari!inner (
+            pantone_kodu,
+            hex_kodu
+          ),
+          hucreler!left (
+            hucre_kodu,
+            hucre_adi,
+            kapasite,
+            mevcut_kartela_sayisi
+          )
+        `)
+        .eq('silindi', false)
+        .order('olusturulma_tarihi', { ascending: false });
+
+      // Arama sorgusu
+      if (searchQuery.trim()) {
+        // Renk kodu ara (23011737.1'den 1737 çıkar)
+        const extractedNumber = searchQuery.match(/\d{4}(\d{4})\.\d/);
+        const searchNumber = extractedNumber ? extractedNumber[1] : searchQuery;
         
-        return (renkKoduMatch || tamKartelaMatch || renkAdiMatch) && durumMatch;
-      });
-      
-      setSonuclar(filtered);
-      setLoading(false);
+        query = query.or(`
+          renk_kodu.ilike.%${searchQuery}%,
+          renk_adi.ilike.%${searchQuery}%,
+          kartela_no.ilike.%${searchQuery}%,
+          renk_kodu.ilike.%${searchNumber}%,
+          musteri_adi.ilike.%${searchQuery}%
+        `);
+      }
+
+      // Durum filtresi
+      if (filterDurum) {
+        // Mapping: aktif -> AKTIF, arsivde -> KARTELA_ARSIV, vs.
+        const durumMap: Record<string, string> = {
+          'aktif': 'AKTIF',
+          'dolu': 'DOLU',
+          'arsivde': 'KARTELA_ARSIV',
+          'kalitede': 'KALITE_ARSIV',
+          'kullanim_disi': 'KULLANIM_DISI'
+        };
+        
+        const dbDurum = durumMap[filterDurum] || filterDurum.toUpperCase();
+        query = query.eq('durum', dbDurum);
+      }
+
+      const { data, error } = await query.limit(50);
+
+      if (error) throw error;
+
+      setSonuclar(data || []);
       
       console.log(`[${currentRoom}] Arama:`, {
         arama: searchQuery,
-        bulunan: filtered.length
+        bulunan: data?.length || 0
       });
-      
-    }, 500);
+
+    } catch (error) {
+      console.error('Arama hatası:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -98,7 +219,47 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
   };
 
   const formatTarih = (tarih: string) => {
-    return new Date(tarih).toLocaleDateString('tr-TR');
+    return new Date(tarih).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getDurumBadge = (durum: string) => {
+    const durumlar = {
+      'AKTIF': { bg: 'bg-green-100', text: 'text-green-800', label: '✅ Aktif' },
+      'DOLU': { bg: 'bg-blue-100', text: 'text-blue-800', label: '🔵 Dolu (Arşiv Bekliyor)' },
+      'KARTELA_ARSIV': { bg: 'bg-gray-100', text: 'text-gray-800', label: '📦 Kartela Arşivi' },
+      'KALITE_ARSIV': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: '🏷️ Kalite Arşivi' },
+      'KULLANIM_DISI': { bg: 'bg-red-100', text: 'text-red-800', label: '⛔ Kullanım Dışı' },
+      'LAB_DEĞERLENDİRME': { bg: 'bg-pink-100', text: 'text-pink-800', label: '🔬 Lab Değerlendirme' }
+    };
+
+    const durumBilgi = durumlar[durum as keyof typeof durumlar] || 
+      { bg: 'bg-gray-100', text: 'text-gray-800', label: durum };
+
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${durumBilgi.bg} ${durumBilgi.text}`}>
+        {durumBilgi.label}
+      </span>
+    );
+  };
+
+  const getGozDurumu = (goz_sayisi: number) => {
+    const yuzde = (goz_sayisi / 14) * 100;
+    
+    if (goz_sayisi === 0) {
+      return { text: '🆕 Yeni (0/14)', color: 'text-gray-600' };
+    } else if (goz_sayisi < 7) {
+      return { text: `🟢 ${goz_sayisi}/14`, color: 'text-green-600' };
+    } else if (goz_sayisi < 14) {
+      return { text: `🟡 ${goz_sayisi}/14`, color: 'text-yellow-600' };
+    } else {
+      return { text: `🔴 DOLU (14/14)`, color: 'text-red-600' };
+    }
   };
 
   return (
@@ -108,18 +269,8 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
         <div className="flex items-start justify-between mb-6">
           <div>
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl ${
-                currentRoom === 'Amir Odası' ? 'bg-purple-100' :
-                currentRoom === 'Kartela Odası' ? 'bg-blue-100' :
-                currentRoom === 'Üretim Alanı' ? 'bg-green-100' :
-                'bg-amber-100'
-              }`}>
-                <odaBilgi.icon className={`h-6 w-6 ${
-                  currentRoom === 'Amir Odası' ? 'text-purple-600' :
-                  currentRoom === 'Kartela Odası' ? 'text-blue-600' :
-                  currentRoom === 'Üretim Alanı' ? 'text-green-600' :
-                  'text-amber-600'
-                }`} />
+              <div className={`p-3 rounded-xl bg-${odaBilgi.color}-100`}>
+                <odaBilgi.icon className={`h-6 w-6 text-${odaBilgi.color}-600`} />
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">{odaBilgi.title}</h3>
@@ -134,7 +285,13 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
                 🔑 {odaBilgi.yetki}
               </span>
               <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                🎯 {mockKartelalar.length} Mock Kartela
+                📊 Toplam: {stats.total} Kartela
+              </span>
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                ✅ Aktif: {stats.active}
+              </span>
+              <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
+                📦 Arşiv: {stats.archive}
               </span>
             </div>
           </div>
@@ -153,8 +310,10 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
               onKeyPress={handleKeyPress}
               placeholder={
                 currentRoom === 'Amir Odası' 
-                  ? "Renk kodu, kartela no, renk adı veya durum ara..."
-                  : "Kartela barkodu taratın veya renk kodu girin (örn: 1737)"
+                  ? "Renk kodu, kartela no, renk adı veya müşteri ara..."
+                  : currentRoom === 'Kartela Odası'
+                  ? "Kartela barkodu taratın veya renk kodu girin (örn: 1737)"
+                  : "Renk kodu (1737), renk adı veya kartela no girin"
               }
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-800"
             />
@@ -171,21 +330,17 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
             >
               <option value="">Tüm Durumlar</option>
               <option value="aktif">✅ Aktif</option>
-              <option value="kullanımda">🔵 Kullanımda</option>
-              <option value="pasif">⭕ Pasif</option>
-              <option value="arsivde">📦 Arşivde</option>
+              <option value="dolu">🔵 Dolu (Arşiv Bekliyor)</option>
+              <option value="arsivde">📦 Kartela Arşivi</option>
+              <option value="kalitede">🏷️ Kalite Arşivi</option>
+              <option value="kullanim_disi">⛔ Kullanım Dışı</option>
             </select>
           </div>
 
           <button
             onClick={handleSearch}
             disabled={loading}
-            className={`px-6 py-3 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 transition whitespace-nowrap ${
-              currentRoom === 'Amir Odası' ? 'bg-purple-600 focus:ring-purple-500' :
-              currentRoom === 'Kartela Odası' ? 'bg-blue-600 focus:ring-blue-500' :
-              currentRoom === 'Üretim Alanı' ? 'bg-green-600 focus:ring-green-500' :
-              'bg-amber-600 focus:ring-amber-500'
-            }`}
+            className={`px-6 py-3 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 transition whitespace-nowrap bg-${odaBilgi.color}-600 focus:ring-${odaBilgi.color}-500`}
           >
             {loading ? '🔍 Aranıyor...' : 'Ara'}
           </button>
@@ -204,11 +359,11 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
             </div>
             <div className="bg-white p-3 rounded border">
               <div className="font-mono text-gray-900">1737</div>
-              <div className="text-green-600 text-xs mt-1">→ Siyah rengini bul</div>
+              <div className="text-green-600 text-xs mt-1">→ "23011737.1" rengini bul</div>
             </div>
             <div className="bg-white p-3 rounded border">
-              <div className="font-mono text-gray-900">siyah</div>
-              <div className="text-green-600 text-xs mt-1">→ Siyah rengini bul</div>
+              <div className="font-mono text-gray-900">KT-2024-0001</div>
+              <div className="text-green-600 text-xs mt-1">→ Kartela no ile ara</div>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-blue-200">
@@ -222,8 +377,8 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-14 w-14 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600 font-medium">Kartelalar aranıyor...</p>
-            <p className="text-sm text-gray-500 mt-2">{currentRoom} • Mock veritabanı</p>
+            <p className="mt-4 text-gray-600 font-medium">Supabase veritabanında aranıyor...</p>
+            <p className="text-sm text-gray-500 mt-2">{currentRoom} • PostgreSQL</p>
           </div>
         )}
 
@@ -235,68 +390,91 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
                 {currentRoom === 'Amir Odası' ? '📊 Analiz Sonuçları' : 
                  currentRoom === 'Kartela Odası' ? '📦 Bulunan Kartelalar' :
                  currentRoom === 'Üretim Alanı' ? '🏭 Üretim Kartelaları' :
-                 '📦 Depo Kartelaları'}
+                 currentRoom === 'Lab Odası' ? '🔬 Lab Kartelaları' :
+                 '📦 Kartelalar'}
                 <span className="ml-3 text-blue-600">({sonuclar.length})</span>
               </h4>
               <div className="text-sm text-gray-500 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Mock veritabanı
+                Supabase PostgreSQL
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sonuclar.map((kartela) => (
-                <div 
-                  key={kartela.id} 
-                  onClick={() => handleKartelaClick(kartela)}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-lg hover:border-blue-300 cursor-pointer transition-all group bg-white"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="font-mono font-bold text-gray-900 group-hover:text-blue-600">
-                        {kartela.kartelaNo}
+              {sonuclar.map((kartela) => {
+                const gozDurumu = getGozDurumu(kartela.goz_sayisi);
+                
+                return (
+                  <div 
+                    key={kartela.id} 
+                    onClick={() => handleKartelaClick(kartela)}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-lg hover:border-blue-300 cursor-pointer transition-all group bg-white"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="font-mono font-bold text-gray-900 group-hover:text-blue-600">
+                          {kartela.kartela_no}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Renk: {kartela.renk_kodu}
+                          {kartela.renk_masalari?.pantone_kodu && (
+                            <span className="ml-2">• Pantone: {kartela.renk_masalari.pantone_kodu}</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Kod: {kartela.renkKodu}
+                      <div className="flex flex-col items-end gap-1">
+                        {getDurumBadge(kartela.durum)}
+                        <div className={`text-xs font-medium ${gozDurumu.color}`}>
+                          {gozDurumu.text}
+                        </div>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      kartela.durum === 'aktif' ? 'bg-green-100 text-green-800' :
-                      kartela.durum === 'kullanımda' ? 'bg-blue-100 text-blue-800' :
-                      kartela.durum === 'arsivde' ? 'bg-gray-100 text-gray-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {kartela.durum}
-                    </span>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <div className="text-xl font-bold text-gray-800 group-hover:text-blue-700">
-                      {kartela.renkAdi}
-                    </div>
-                    {kartela.musteri && (
-                      <div className="text-gray-600 mt-1 text-sm">
-                        🏢 {kartela.musteri}
+                    
+                    <div className="mb-4">
+                      <div className="text-xl font-bold text-gray-800 group-hover:text-blue-700">
+                        {kartela.renk_adi}
                       </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center text-gray-600">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      <span className="truncate">{kartela.mevcutLokasyon.oda} - {kartela.mevcutLokasyon.raf}</span>
+                      {kartela.musteri_adi && (
+                        <div className="text-gray-600 mt-1 text-sm">
+                          🏢 {kartela.musteri_adi}
+                        </div>
+                      )}
+                      {kartela.proje_kodu && (
+                        <div className="text-gray-500 text-xs mt-1">
+                          📋 Proje: {kartela.proje_kodu}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500 text-xs">
-                        📅 {formatTarih(kartela.guncellemeTarihi)}
-                      </span>
-                      <span className="text-blue-600 font-medium text-sm">
-                        Detay →
-                      </span>
+                    
+                    <div className="space-y-2 text-sm">
+                      {kartela.hucreler ? (
+                        <div className="flex items-center text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          <div>
+                            <div className="font-medium">{kartela.hucreler.hucre_kodu}</div>
+                            <div className="text-xs text-gray-500">
+                              Kapasite: {kartela.hucreler.mevcut_kartela_sayisi}/{kartela.hucreler.kapasite}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 text-sm">
+                          📍 Hücreye yerleştirilmemiş
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 text-xs">
+                          📅 {formatTarih(kartela.olusturulma_tarihi)}
+                        </span>
+                        <span className="text-blue-600 font-medium text-sm">
+                          Detay →
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             
             {/* İpucu */}
@@ -314,7 +492,7 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
             <p className="text-xl font-medium">"{searchQuery}" için sonuç bulunamadı</p>
             <p className="text-gray-600 mt-2">Farklı bir renk kodu, kartela no veya renk adı deneyin</p>
             <div className="mt-6 text-sm text-gray-400">
-              📍 {currentRoom} • Mock veritabanı
+              📍 {currentRoom} • Supabase PostgreSQL
             </div>
           </div>
         )}
@@ -324,13 +502,16 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
             <div className="text-5xl mb-6">
               {currentRoom === 'Amir Odası' ? '📊' :
                currentRoom === 'Kartela Odası' ? '🎨' :
-               currentRoom === 'Üretim Alanı' ? '🏭' : '📦'}
+               currentRoom === 'Üretim Alanı' ? '🏭' : 
+               currentRoom === 'Lab Odası' ? '🔬' : '📦'}
             </div>
             <p className="text-xl font-medium">
               {currentRoom === 'Amir Odası' 
                 ? 'Kartela analizi için arama yapın' 
                 : currentRoom === 'Kartela Odası'
                 ? 'Kartela barkodu taratın veya renk kodu girin'
+                : currentRoom === 'Lab Odası'
+                ? 'Lab analizi için renk kodu ara'
                 : 'Kartela aramak için renk kodu veya adı yazın'}
             </p>
             <p className="text-gray-600 mt-2">
@@ -339,12 +520,10 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
                 : 'Renk kodu (1737) veya renk adı (siyah) ile arama yapabilirsiniz'}
             </p>
             <button
-              onClick={() => {
-                setSonuclar(mockKartelalar.slice(0, 6));
-              }}
+              onClick={handleSearch}
               className="mt-6 px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900"
             >
-              Tüm Kartelaları Göster (Mock)
+              Tüm Kartelaları Göster
             </button>
           </div>
         )}
@@ -358,7 +537,7 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Kartela Detayları</h2>
-                  <p className="text-gray-600">{selectedKartela.kartelaNo} • {selectedKartela.renkAdi}</p>
+                  <p className="text-gray-600">{selectedKartela.kartela_no} • {selectedKartela.renk_adi}</p>
                 </div>
                 <button
                   onClick={closeModal}
@@ -377,12 +556,23 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
                 >
                   Kapat
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                  QR Kod Göster
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedKartela.kartela_no);
+                    alert('Kartela no kopyalandı!');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Kartela No Kopyala
                 </button>
-                {currentRoom === 'Kartela Odası' && (
+                {(currentRoom === 'Kartela Odası' || currentRoom === 'Yönetici Odası') && (
                   <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                     Lokasyon Güncelle
+                  </button>
+                )}
+                {currentRoom === 'Lab Odası' && (
+                  <button className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition">
+                    Pantone Ata
                   </button>
                 )}
               </div>

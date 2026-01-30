@@ -1,17 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Factory, LogOut, User, DoorOpen, Database } from 'lucide-react'
 import RoomAccess from '@/components/room/RoomAccess'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaOdaDashboard from '@/components/kartela-odasi/KartelaOdaDashboard'
 import YoneticiDashboard from '@/components/yonetici-odasi/YoneticiDashboard'
+import AppPreloader from '@/components/AppPreloader'
 import { api } from '@/lib/api'
 
 export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [currentRoom, setCurrentRoom] = useState<any>(null)
   const [accessLog, setAccessLog] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+
+  useEffect(() => {
+    // 3 saniye sonra preloader'ı kapat
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false)
+  }
 
   const handleAccessGranted = async (userData: any, roomData: any) => {
     setCurrentUser(userData)
@@ -35,6 +50,11 @@ export default function HomePage() {
     }
     setCurrentUser(null)
     setCurrentRoom(null)
+  }
+
+  // Preloader gösteriliyorsa
+  if (isLoading) {
+    return <AppPreloader onLoadingComplete={handleLoadingComplete} />
   }
 
   return (
