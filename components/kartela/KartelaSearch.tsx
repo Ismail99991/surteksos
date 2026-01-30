@@ -300,3 +300,9 @@ export default function KartelaSearch({ currentRoom }: KartelaSearchProps) {
     </div>
   );
 }
+// KartelaSearch.tsx'in sonuna ekle (veya mevcut sonuç gösterimini değiştir):
+{kartelaDetay && (
+  <div className="mt-6">
+    <KartelaDetay kartela={kartelaDetay} />
+  </div>
+)}

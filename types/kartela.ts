@@ -1,31 +1,38 @@
-export interface Kartela {
-  id: string
-  renk_kodu: string
-  musteri: string | null
-  tip: 'ozel' | 'genel' | 'standart'
-  durum: 'arsivde' | 'sef_masasinda' | 'uretimde' | 'kayip'
-  mevcut_lokasyon: string | null
-  son_erisim: Date | string
-  olusturma_tarihi: Date | string
-  sorumlu_kisi: string | null
-  telefon: string | null
-  notlar: string | null
-  recete_no: string | null
+export interface Lokasyon {
+  oda: string;
+  raf: string;
+  hucre: string;
+  tamAdres: string;
 }
 
 export interface Hareket {
-  id: string
-  kartela_id: string
-  renk_kodu: string
-  islem: 'ALINDI' | 'VERILDI' | 'KAYIP' | 'BULUNDU'
-  kullanici: string
-  lokasyon: string | null
-  aciklama: string | null
-  tarih: Date | string
+  id: string;
+  kartelaNo: string;
+  hareketTipi: 'alindi' | 'iade' | 'transfer' | 'yaratildi';
+  personel: {
+    id: string;
+    ad: string;
+    unvan: string;
+  };
+  tarih: string;
+  eskiLokasyon?: Lokasyon;
+  yeniLokasyon: Lokasyon;
+  not?: string;
 }
 
-export interface SearchResult {
-  kartela: Kartela
-  hareketler: Hareket[]
-  mesaj: string
+export interface Kartela {
+  id: string;
+  kartelaNo: string; // 23011737.1
+  renkKodu: string;  // 1737
+  renkAdi: string;
+  musteri?: string;
+  tip: 'ozel' | 'genel' | 'standart';
+  durum: 'aktif' | 'pasif' | 'arsivde' | 'kullanımda';
+  mevcutLokasyon: Lokasyon;
+  hareketGeçmişi: Hareket[];
+  olusturmaTarihi: string;
+  guncellemeTarihi: string;
+  notlar?: string;
+  receteNo?: string;
+  kumasTipi?: string;
 }
