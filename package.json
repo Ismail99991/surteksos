@@ -16,11 +16,13 @@
     "@mui/icons-material": "^5.15.2",
     "@mui/material": "^5.15.2",
     "@supabase/supabase-js": "^2.93.3",
+    "@types/qrcode": "^1.5.6",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
     "lodash": "^4.17.21",
     "lucide-react": "^0.309.0",
     "next": "^14.2.5",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zustand": "^4.4.7"
