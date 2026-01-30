@@ -1,161 +1,224 @@
 'use client';
 
-import { Clock, MapPin, User, Calendar, ArrowRight } from 'lucide-react';
-import { Kartela } from '@/types/kartela';
+import { Clock, MapPin, User, Calendar, ArrowRight, Package, Eye, Archive } from 'lucide-react';
+import type { Database } from '@/types/supabase';
+
+type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
+  renk_masalari?: {
+    pantone_kodu: string | null;
+    hex_kodu: string | null;
+  };
+  hucreler?: {
+    hucre_kodu: string;
+    hucre_adi: string;
+    kapasite: number;
+    mevcut_kartela_sayisi: number;
+  };
+};
 
 interface KartelaDetayProps {
   kartela: Kartela;
 }
 
 export default function KartelaDetay({ kartela }: KartelaDetayProps) {
-  const sonHareket = kartela.hareketGeçmişi[kartela.hareketGeçmişi.length - 1];
+  // Durum renkleri
+  const getDurumRenk = (durum: string) => {
+    switch (durum) {
+      case 'AKTIF': return { bg: 'bg-green-100', text: 'text-green-800', label: '✅ Aktif' };
+      case 'DOLU': return { bg: 'bg-blue-100', text: 'text-blue-800', label: '🔵 Dolu' };
+      case 'KARTELA_ARSIV': return { bg: 'bg-gray-100', text: 'text-gray-800', label: '📦 Arşiv' };
+      case 'KALITE_ARSIV': return { bg: 'bg-indigo-100', text: 'text-indigo-800', label: '🏷️ Kalite Arşivi' };
+      case 'KULLANIM_DISI': return { bg: 'bg-red-100', text: 'text-red-800', label: '⛔ Kullanım Dışı' };
+      default: return { bg: 'bg-gray-100', text: 'text-gray-800', label: durum };
+    }
+  };
+
+  const durumBilgi = getDurumRenk(kartela.durum);
   
+  // Göz durumu
+  const getGozDurumu = (goz_sayisi: number) => {
+    if (goz_sayisi === 0) return { text: '🆕 Yeni (0/14)', color: 'text-gray-600' };
+    if (goz_sayisi < 7) return { text: `🟢 ${goz_sayisi}/14`, color: 'text-green-600' };
+    if (goz_sayisi < 14) return { text: `🟡 ${goz_sayisi}/14`, color: 'text-yellow-600' };
+    return { text: `🔴 DOLU (14/14)`, color: 'text-red-600' };
+  };
+
+  const gozDurumu = getGozDurumu(kartela.goz_sayisi);
+  
+  // Tarih formatı
+  const formatTarih = (tarih: string) => {
+    return new Date(tarih).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg border p-6">
       {/* Başlık */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h3 className="text-2xl font-bold text-gray-900">{kartela.renkAdi}</h3>
-          <p className="text-gray-600">Kartela No: {kartela.kartelaNo}</p>
+          <h3 className="text-2xl font-bold text-gray-900">{kartela.renk_adi}</h3>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-gray-600 font-mono">{kartela.kartela_no}</p>
+            <span className="text-gray-500">•</span>
+            <p className="text-gray-600">{kartela.renk_kodu}</p>
+            {kartela.renk_masalari?.pantone_kodu && (
+              <>
+                <span className="text-gray-500">•</span>
+                <p className="text-gray-600">Pantone: {kartela.renk_masalari.pantone_kodu}</p>
+              </>
+            )}
+          </div>
         </div>
-        <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-          kartela.durum === 'aktif' ? 'bg-green-100 text-green-800' :
-          kartela.durum === 'kullanımda' ? 'bg-blue-100 text-blue-800' :
-          kartela.durum === 'arsivde' ? 'bg-gray-100 text-gray-800' :
-          'bg-red-100 text-red-800'
-        }`}>
-          {kartela.durum.charAt(0).toUpperCase() + kartela.durum.slice(1)}
+        <div className={`px-4 py-2 rounded-full text-sm font-medium ${durumBilgi.bg} ${durumBilgi.text}`}>
+          {durumBilgi.label}
         </div>
       </div>
 
       {/* Grid Bilgiler */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Temel Bilgiler */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center gap-3 mb-3">
+            <Package className="h-5 w-5 text-blue-600" />
+            <h4 className="font-semibold text-gray-900">Kartela Bilgileri</h4>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Göz Durumu:</span>
+              <span className={`font-medium ${gozDurumu.color}`}>
+                {gozDurumu.text}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Dolum Oranı:</span>
+              <span className="font-medium">{kartela.goz_dolum_orani}%</span>
+            </div>
+            {kartela.musteri_adi && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Müşteri:</span>
+                <span className="font-medium">{kartela.musteri_adi}</span>
+              </div>
+            )}
+            {kartela.proje_kodu && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Proje Kodu:</span>
+                <span className="font-medium">{kartela.proje_kodu}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Toplam Kullanım:</span>
+              <span className="font-medium">{kartela.toplam_kullanim_sayisi} kez</span>
+            </div>
+            {kartela.son_kullanim_tarihi && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Son Kullanım:</span>
+                <span className="font-medium">{formatTarih(kartela.son_kullanim_tarihi)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Lokasyon Bilgisi */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="flex items-center gap-3 mb-3">
-            <MapPin className="h-5 w-5 text-blue-600" />
-            <h4 className="font-semibold text-gray-900">Mevcut Lokasyon</h4>
+            <MapPin className="h-5 w-5 text-green-600" />
+            <h4 className="font-semibold text-gray-900">Lokasyon</h4>
           </div>
+          <div className="space-y-3">
+            {kartela.hucreler ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Hücre Kodu:</span>
+                  <span className="font-medium font-mono">{kartela.hucreler.hucre_kodu}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Hücre Adı:</span>
+                  <span className="font-medium">{kartela.hucreler.hucre_adi}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Kapasite:</span>
+                  <span className="font-medium">
+                    {kartela.hucreler.mevcut_kartela_sayisi}/{kartela.hucreler.kapasite}
+                  </span>
+                </div>
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-sm text-gray-500 mb-1">Tam Konum:</p>
+                  <p className="font-mono text-sm">
+                    {kartela.hucre_kodu || 'Hücre atanmamış'}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <Eye className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">Kartela henüz bir hücreye yerleştirilmemiş</p>
+                <p className="text-sm text-gray-400 mt-1">QR okutarak hücreye yerleştirin</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Sistem Bilgileri */}
+      <div className="bg-gray-50 p-4 rounded-lg mb-8">
+        <div className="flex items-center gap-3 mb-3">
+          <Calendar className="h-5 w-5 text-purple-600" />
+          <h4 className="font-semibold text-gray-900">Sistem Bilgileri</h4>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-gray-600">Oda:</span>
-              <span className="font-medium">{kartela.mevcutLokasyon.oda}</span>
+              <span className="text-gray-600">Oluşturulma:</span>
+              <span className="font-medium">{formatTarih(kartela.olusturulma_tarihi)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Raf:</span>
-              <span className="font-medium">{kartela.mevcutLokasyon.raf}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Hücre:</span>
-              <span className="font-medium">{kartela.mevcutLokasyon.hucre}</span>
-            </div>
-            <div className="mt-3 pt-3 border-t">
-              <p className="text-sm text-gray-500">Tam Adres:</p>
-              <p className="font-mono text-sm">{kartela.mevcutLokasyon.tamAdres}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Son Hareket */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-3 mb-3">
-            <Clock className="h-5 w-5 text-purple-600" />
-            <h4 className="font-semibold text-gray-900">Son Hareket</h4>
-          </div>
-          {sonHareket ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <User className="h-4 w-4 text-gray-400" />
-                <div>
-                  <p className="font-medium">{sonHareket.personel.ad}</p>
-                  <p className="text-sm text-gray-500">{sonHareket.personel.unvan}</p>
-                </div>
+            {kartela.arsive_alma_tarihi && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Arşiv Tarihi:</span>
+                <span className="font-medium">{formatTarih(kartela.arsive_alma_tarihi)}</span>
               </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <div>
-                  <p className="font-medium">
-                    {new Date(sonHareket.tarih).toLocaleDateString('tr-TR')}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(sonHareket.tarih).toLocaleTimeString('tr-TR')}
-                  </p>
-                </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            {kartela.rpt_calismasi && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">RPT Çalışması:</span>
+                <span className="font-medium">{kartela.rpt_calismasi}</span>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">İşlem:</p>
+            )}
+            {kartela.renk_masalari?.hex_kodu && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">HEX Kodu:</span>
                 <div className="flex items-center gap-2">
-                  {sonHareket.eskiLokasyon && (
-                    <>
-                      <span className="text-xs px-2 py-1 bg-gray-200 rounded">
-                        {sonHareket.eskiLokasyon.hucre}
-                      </span>
-                      <ArrowRight className="h-3 w-3 text-gray-400" />
-                    </>
-                  )}
-                  <span className="text-xs px-2 py-1 bg-blue-200 rounded">
-                    {sonHareket.yeniLokasyon.hucre}
-                  </span>
-                  <span className="text-sm text-gray-700 ml-2">
-                    {sonHareket.hareketTipi === 'alindi' ? 'Alındı' :
-                     sonHareket.hareketTipi === 'iade' ? 'İade Edildi' :
-                     sonHareket.hareketTipi === 'transfer' ? 'Transfer Edildi' : 'Oluşturuldu'}
-                  </span>
+                  <div 
+                    className="w-4 h-4 rounded border"
+                    style={{ backgroundColor: kartela.renk_masalari.hex_kodu }}
+                  />
+                  <span className="font-medium font-mono">{kartela.renk_masalari.hex_kodu}</span>
                 </div>
               </div>
-              {sonHareket.not && (
-                <div className="mt-2 p-2 bg-white border rounded text-sm">
-                  📝 {sonHareket.not}
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-gray-500">Hareket kaydı bulunmuyor</p>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Hareket Geçmişi */}
-      <div>
-        <h4 className="font-semibold text-gray-900 mb-4">Hareket Geçmişi</h4>
-        <div className="space-y-3 max-h-60 overflow-y-auto">
-          {kartela.hareketGeçmişi.slice().reverse().map((hareket) => (
-            <div key={hareket.id} className="p-3 bg-gray-50 rounded-lg border">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="h-3 w-3 text-gray-400" />
-                    <span className="font-medium">{hareket.personel.ad}</span>
-                    <span className="text-xs text-gray-500">({hareket.personel.unvan})</span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {new Date(hareket.tarih).toLocaleDateString('tr-TR')} • 
-                    {new Date(hareket.tarih).toLocaleTimeString('tr-TR')}
-                  </p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded ${
-                  hareket.hareketTipi === 'alindi' ? 'bg-blue-100 text-blue-800' :
-                  hareket.hareketTipi === 'iade' ? 'bg-green-100 text-green-800' :
-                  hareket.hareketTipi === 'transfer' ? 'bg-purple-100 text-purple-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {hareket.hareketTipi}
-                </span>
-              </div>
-              {hareket.not && (
-                <p className="text-sm text-gray-700 mt-2">📝 {hareket.not}</p>
-              )}
-              {hareket.eskiLokasyon && (
-                <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
-                  <span>{hareket.eskiLokasyon.hucre}</span>
-                  <ArrowRight className="h-3 w-3" />
-                  <span>{hareket.yeniLokasyon.hucre}</span>
-                </div>
-              )}
-            </div>
-          ))}
+      {/* Notlar */}
+      {(kartela.durum === 'KULLANIM_DISI' || kartela.silindi) && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2 text-red-800 mb-2">
+            <Archive className="h-5 w-5" />
+            <h4 className="font-semibold">Kullanım Dışı Bilgisi</h4>
+          </div>
+          <p className="text-red-700 text-sm">
+            {kartela.silindi ? 'Bu kartela silinmiş.' : 'Bu kartela kullanım dışı bırakılmış.'}
+            {kartela.silinme_tarihi && ` Silinme tarihi: ${formatTarih(kartela.silinme_tarihi)}`}
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 }
