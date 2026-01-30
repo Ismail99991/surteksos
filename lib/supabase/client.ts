@@ -1,34 +1,41 @@
-// Mock Supabase Client for development
-export const supabase = {
-  from: (table: string) => ({
-    select: (columns: string = '*') => ({
-      eq: (col: string, val: any) => Promise.resolve({ data: [], error: null }),
-      ilike: (col: string, pattern: string) => Promise.resolve({ data: [], error: null }),
-      limit: (count: number) => Promise.resolve({ data: [], error: null }),
-      order: (column: string, options: { ascending: boolean }) => Promise.resolve({ data: [], error: null })
-    }),
-    insert: (data: any) => Promise.resolve({ data: [data], error: null }),
-    update: (data: any) => ({
-      eq: () => Promise.resolve({ data: [data], error: null })
-    }),
-    delete: () => ({
-      eq: () => Promise.resolve({ data: [], error: null })
-    })
-  }),
-  auth: {
-    getUser: () => Promise.resolve({ 
-      data: { 
-        user: { 
-          id: 'mock-user', 
-          email: 'mock@example.com' 
-        } 
-      }, 
-      error: null 
-    })
-  },
-  channel: () => ({
-    on: () => ({ subscribe: () => {} })
-  })
-};
+// lib/supabase/client.ts - GERÇEK VERSİYON
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 
-export default supabase;
+// Development için kontrol
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('⚠️ Supabase environment variables missing. Using mock client.')
+}
+
+// Gerçek veya mock client
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+  : {
+      // Fallback mock client (environment yoksa)
+      from: (table: string) => ({
+        select: (columns?: string) => ({
+          eq: (col: string, val: any) => Promise.resolve({ data: [], error: null }),
+          ilike: (col: string, pattern: string) => Promise.resolve({ data: [], error: null }),
+          limit: (count: number) => Promise.resolve({ data: [], error: null }),
+          order: (column: string, options: { ascending: boolean }) => Promise.resolve({ data: [], error: null })
+        }),
+        insert: (data: any) => Promise.resolve({ data: [data], error: null }),
+        update: (data: any) => ({
+          eq: () => Promise.resolve({ data: [data], error: null })
+        }),
+        delete: () => ({
+          eq: () => Promise.resolve({ data: [], error: null })
+        })
+      }),
+      auth: {
+        getUser: () => Promise.resolve({ 
+          data: { user: null }, 
+          error: null 
+        })
+      }
+    }
+
+export default supabase
