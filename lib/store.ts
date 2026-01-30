@@ -1,5 +1,18 @@
 import { create } from 'zustand'
-import { Kartela } from '@/types/kartela'
+import type { Database } from '@/types/supabase'
+
+type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
+  renk_masalari?: {
+    pantone_kodu: string | null;
+    hex_kodu: string | null;
+  };
+  hucreler?: {
+    hucre_kodu: string;
+    hucre_adi: string;
+    kapasite: number;
+    mevcut_kartela_sayisi: number;
+  };
+};
 
 interface KartelaStore {
   currentKartela: Kartela | null
