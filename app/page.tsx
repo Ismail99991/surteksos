@@ -166,7 +166,13 @@ export default function HomePage() {
           <div>
             {currentRoom.name === 'Kartela Odası' ? (
               /* KARTELA ODASI DASHBOARD */
-              <KartelaOdaDashboard roomName={currentRoom.name} />
+             if (currentRoom.name === 'Kartela Odası') {
+             return <KartelaOdaDashboard roomName={currentRoom.name} />;
+             } else if (currentRoom.name === 'Yönetici Odası') {
+              return <YoneticiDashboard roomName={currentRoom.name} />;
+             } else {
+               return <KartelaSearch currentRoom={currentRoom.name} />;
+             }
             ) : (
               /* DİĞER ODALAR İÇİN KARTELA ARAMA */
               <div className="space-y-8">

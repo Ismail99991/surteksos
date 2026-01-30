@@ -163,3 +163,15 @@ export function kartelaAra(query: string): Kartela[] {
     (kartela.musteri && kartela.musteri.toLowerCase().includes(query.toLowerCase()))
   );
 }
+
+// Yönetici Odası lokasyonu ekle
+export const mockLokasyonlar: Record<string, Lokasyon> = {
+  // ... diğer lokasyonlar
+  'YONETICI-ODA-001-F1': {
+    oda: 'Yönetici Odası',
+    raf: 'F Rafı',
+    hucre: 'F1',
+    tamAdres: 'Yönetici Odası - F Rafı - F1'
+  },
+  // ... diğer lokasyonlar devam ediyor
+};

@@ -1,30 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   PlusCircle, RefreshCw, Gift, Search, 
   BarChart3, Users, Package, Shield,
-  FileText, QrCode, Printer, Download
+  FileText, QrCode, Printer, Download,
+  MapPin, Calendar, Filter, Eye
 } from 'lucide-react';
+import { mockKartelalar } from '@/utils/mockKartelalar';
+import type { Kartela } from '@/types/kartela';
 
 interface KartelaOdaDashboardProps {
   roomName: string;
 }
 
 export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'yeni' | 'sifirla' | 'musteri'>('dashboard');
-  const [kartelaCount, setKartelaCount] = useState(1247);
-  const [musteriCount, setMusteriCount] = useState(89);
-  const [aktifKartelalar, setAktifKartelalar] = useState(843);
-  
-  // Mock veriler
-  const sonKartelalar = [
-    { id: 1, no: '23011737.1', musteri: 'Tekstil A.Ş.', renk: 'Siyah', tarih: '2024-01-25' },
-    { id: 2, no: '23011892.1', musteri: 'Moda Ltd.', renk: 'Beyaz', tarih: '2024-01-24' },
-    { id: 3, no: '23011543.2', musteri: 'Kumaş Dünyası', renk: 'Kırmızı', tarih: '2024-01-23' },
-    { id: 4, no: '23011208.1', musteri: 'Renk Tekstil', renk: 'Mavi', tarih: '2024-01-22' },
-    { id: 5, no: '23011999.1', musteri: 'İplik Sanayi', renk: 'Sarı', tarih: '2024-01-21' },
-  ];
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'yeni' | 'sifirla' | 'musteri' | 'kartelalar'>('dashboard');
+  const [kartelaCount, setKartelaCount] = useState(0);
+  const [musteriCount, setMusteriCount] = useState(0);
+  const [aktifKartelalar, setAktifKartelalar] = useState(0);
+  const [mevcutKartelalar, setMevcutKartelalar] = useState<Kartela[]>([]);
+  const [kartelaFilter, setKartelaFilter] = useState<string>('');
+
+  // İlk yüklemede mock verileri al
+  useEffect(() => {
+    setMevcutKartelalar(mockKartelalar);
+    setKartelaCount(mockKartelalar.length);
+    setAktifKartelalar(mockKartelalar.filter(k => k.durum === 'aktif' || k.durum === 'kullanımda').length);
+    
+    // Benzersiz müşteri sayısı
+    const musteriler = new Set(mockKartelalar.map(k => k.musteri).filter(Boolean));
+    setMusteriCount(musteriler.size);
+  }, []);
+
+  // Filtreleme
+  useEffect(() => {
+    if (!kartelaFilter) {
+      setMevcutKartelalar(mockKartelalar);
+    } else {
+      const filtered = mockKartelalar.filter(kartela =>
+        kartela.durum === kartelaFilter
+      );
+      setMevcutKartelalar(filtered);
+    }
+  }, [kartelaFilter]);
 
   const handleYeniKartela = () => {
     console.log('Yeni kartela oluşturuluyor...');
@@ -41,6 +60,10 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
   const handleMusteriyeAda = () => {
     console.log('Müşteriye kartela atanıyor...');
     setActiveTab('musteri');
+  };
+
+  const formatTarih = (tarih: string) => {
+    return new Date(tarih).toLocaleDateString('tr-TR');
   };
 
   // Dashboard ana içeriği
@@ -71,7 +94,7 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
             </div>
           </div>
           <div className="mt-4 text-sm text-green-600">
-            +12 bu ay
+            +{mockKartelalar.length} mock kayıt
           </div>
         </div>
 
@@ -86,7 +109,7 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
             </div>
           </div>
           <div className="mt-4 text-sm text-green-600">
-            %67.6 aktif
+            %{Math.round((aktifKartelalar / kartelaCount) * 100)} aktif
           </div>
         </div>
 
@@ -101,7 +124,7 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
             </div>
           </div>
           <div className="mt-4 text-sm text-green-600">
-            +5 bu ay
+            Nike, Zara, LC Waikiki, Mavi
           </div>
         </div>
 
@@ -181,58 +204,114 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
         </div>
       </div>
 
-      {/* Son Kartelalar */}
+      {/* MEVCUT KARTELALAR BÖLÜMÜ */}
       <div className="bg-white rounded-xl shadow border">
         <div className="p-6 border-b">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900">Son Oluşturulan Kartelalar</h3>
-            <button className="flex items-center gap-2 text-blue-600 hover:text-blue-800">
-              <Search className="h-4 w-4" />
-              Tümünü Gör
-            </button>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">📦 Mevcut Kartelalar</h3>
+              <p className="text-gray-600 text-sm mt-1">
+                Odanızdaki tüm kartelaları görüntüleyin ve yönetin
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Filter className="h-4 w-4 text-gray-400" />
+                </div>
+                <select
+                  value={kartelaFilter}
+                  onChange={(e) => setKartelaFilter(e.target.value)}
+                  className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white text-sm"
+                >
+                  <option value="">Tüm Durumlar</option>
+                  <option value="aktif">Aktif</option>
+                  <option value="kullanımda">Kullanımda</option>
+                  <option value="arsivde">Arşivde</option>
+                  <option value="pasif">Pasif</option>
+                </select>
+              </div>
+              <button 
+                onClick={() => setActiveTab('kartelalar')}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
+              >
+                <Eye className="h-4 w-4" />
+                Tümünü Gör
+              </button>
+            </div>
           </div>
         </div>
+        
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kartela No</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Müşteri</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renk</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Müşteri</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasyon</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Son Güncelleme</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sonKartelalar.map((kartela) => (
+              {mevcutKartelalar.slice(0, 5).map((kartela) => (
                 <tr key={kartela.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-mono font-bold text-gray-900">{kartela.no}</div>
+                    <div className="font-mono font-bold text-gray-900">{kartela.kartelaNo}</div>
+                    <div className="text-xs text-gray-500">{kartela.renkKodu}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{kartela.musteri}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                      {kartela.renk}
+                    <div className="font-semibold">{kartela.renkAdi}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {kartela.musteri ? (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">
+                        {kartela.musteri}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Genel</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs text-gray-600">
+                        {kartela.mevcutLokasyon.raf} - {kartela.mevcutLokasyon.hucre}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      kartela.durum === 'aktif' ? 'bg-green-100 text-green-800' :
+                      kartela.durum === 'kullanımda' ? 'bg-blue-100 text-blue-800' :
+                      kartela.durum === 'arsivde' ? 'bg-gray-100 text-gray-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {kartela.durum}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{kartela.tarih}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button className="p-2 text-gray-600 hover:text-blue-600">
-                        <FileText className="h-4 w-4" />
-                      </button>
-                      <button className="p-2 text-gray-600 hover:text-green-600">
-                        <QrCode className="h-4 w-4" />
-                      </button>
-                      <button className="p-2 text-gray-600 hover:text-purple-600">
-                        <Printer className="h-4 w-4" />
-                      </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatTarih(kartela.guncellemeTarihi)}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          
+          {mevcutKartelalar.length > 5 && (
+            <div className="p-4 border-t text-center">
+              <button 
+                onClick={() => setActiveTab('kartelalar')}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                + {mevcutKartelalar.length - 5} kartela daha görüntüle →
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -244,7 +323,7 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
             <div className="p-4 bg-gray-50 rounded-lg border">
               <p className="text-sm text-gray-600">Kartela barkodunu taratın:</p>
               <div className="mt-2 flex items-center gap-3">
-                <div className="flex-1 px-4 py-3 bg-white border rounded-lg font-mono">
+                <div className="flex-1 px-4 py-3 bg-white border rounded-lg font-mono text-center">
                   2301____.__
                 </div>
                 <button className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -252,7 +331,7 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
                 </button>
               </div>
             </div>
-            <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600">
+            <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition">
               📷 Kamera ile Tarama Başlat
             </button>
           </div>
@@ -264,19 +343,25 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span>Aktif Kartelalar</span>
-                <span>%67.6</span>
+                <span>%{Math.round((aktifKartelalar / kartelaCount) * 100)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: '67.6%' }}></div>
+                <div 
+                  className="bg-green-500 h-2 rounded-full" 
+                  style={{ width: `${(aktifKartelalar / kartelaCount) * 100}%` }}
+                ></div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span>Müşteri Atanmış</span>
-                <span>%42.3</span>
+                <span>%{Math.round((musteriCount / kartelaCount) * 100)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '42.3%' }}></div>
+                <div 
+                  className="bg-blue-500 h-2 rounded-full" 
+                  style={{ width: `${(musteriCount / kartelaCount) * 100}%` }}
+                ></div>
               </div>
             </div>
             <div>
@@ -289,7 +374,7 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
               </div>
             </div>
           </div>
-          <button className="w-full mt-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center justify-center gap-2">
+          <button className="w-full mt-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center justify-center gap-2 transition">
             <Download className="h-4 w-4" />
             Rapor İndir (PDF)
           </button>
@@ -298,53 +383,115 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
     </div>
   );
 
-  // Yeni Kartela formu (basit)
-  const renderYeniKartela = () => (
+  // Tüm Kartelalar görünümü
+  const renderTumKartelalar = () => (
     <div className="bg-white rounded-xl shadow-lg p-8">
       <div className="flex items-center gap-4 mb-8">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="p-2 hover:bg-gray-100 rounded-lg transition"
         >
           ← Geri
         </button>
-        <h2 className="text-2xl font-bold text-gray-900">Yeni Kartela Oluştur</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Tüm Kartelalar</h2>
+          <p className="text-gray-600">Kartela Odası'ndaki tüm kartelalar</p>
+        </div>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Kartela ara..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <select
+            value={kartelaFilter}
+            onChange={(e) => setKartelaFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Tümü</option>
+            <option value="aktif">Aktif</option>
+            <option value="kullanımda">Kullanımda</option>
+            <option value="arsivde">Arşivde</option>
+          </select>
+        </div>
       </div>
-      <div className="max-w-2xl">
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Renk Kodu</label>
-            <input
-              type="text"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Örn: 1737"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Renk Adı</label>
-            <input
-              type="text"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Örn: Siyah"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Müşteri</label>
-            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-              <option>Müşteri Seçin</option>
-              <option>Tekstil A.Ş.</option>
-              <option>Moda Ltd.</option>
-              <option>Kumaş Dünyası</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <button className="py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200">
-              İptal
-            </button>
-            <button className="py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              Kartela Oluştur
-            </button>
-          </div>
+      
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kartela No</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renk</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kod</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Müşteri</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasyon</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {mevcutKartelalar.map((kartela) => (
+              <tr key={kartela.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="font-mono font-bold">{kartela.kartelaNo}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="font-semibold">{kartela.renkAdi}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="px-2 py-1 bg-gray-100 rounded text-sm">
+                    {kartela.renkKodu}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {kartela.musteri || 'Genel'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-1 text-sm">
+                    <MapPin className="h-3 w-3" />
+                    {kartela.mevcutLokasyon.hucre}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    kartela.durum === 'aktif' ? 'bg-green-100 text-green-800' :
+                    kartela.durum === 'kullanımda' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {kartela.durum}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex gap-2">
+                    <button className="p-2 text-gray-600 hover:text-blue-600">
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button className="p-2 text-gray-600 hover:text-green-600">
+                      <QrCode className="h-4 w-4" />
+                    </button>
+                    <button className="p-2 text-gray-600 hover:text-purple-600">
+                      <Printer className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      
+      <div className="mt-6 flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          Toplam {mevcutKartelalar.length} kartela
+        </div>
+        <div className="flex gap-2">
+          <button className="px-4 py-2 border rounded-lg">Önceki</button>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">Sonraki</button>
         </div>
       </div>
     </div>
@@ -353,8 +500,16 @@ export default function KartelaOdaDashboard({ roomName }: KartelaOdaDashboardPro
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       {activeTab === 'dashboard' ? renderDashboard() : 
-       activeTab === 'yeni' ? renderYeniKartela() : 
-       activeTab === 'sifirla' ? (
+       activeTab === 'kartelalar' ? renderTumKartelalar() :
+       activeTab === 'yeni' ? (
+         <div className="bg-white rounded-xl p-8">
+           <div className="text-center py-12">
+             <div className="text-5xl mb-6">✨</div>
+             <h2 className="text-2xl font-bold mb-4">Yeni Kartela Oluştur</h2>
+             <p className="text-gray-600">Bu özellik aktif edilecek...</p>
+           </div>
+         </div>
+       ) : activeTab === 'sifirla' ? (
          <div className="bg-white rounded-xl p-8">
            <div className="text-center py-12">
              <div className="text-5xl mb-6">🔄</div>
