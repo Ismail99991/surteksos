@@ -1,6 +1,7 @@
 import { Kartela, Lokasyon } from '@/types/kartela';
+import { mockUsers } from './mockUsers';
 
-// Mock lokasyonlar (Yönetici Odası dahil)
+// Mock lokasyonlar (TÜM ODALAR DAHİL)
 export const mockLokasyonlar: Record<string, Lokasyon> = {
   'KARTELA-ODA-001-A1': {
     oda: 'Kartela Odası',
@@ -37,16 +38,21 @@ export const mockLokasyonlar: Record<string, Lokasyon> = {
     raf: 'F Rafı',
     hucre: 'F1',
     tamAdres: 'Yönetici Odası - F Rafı - F1'
+  },
+  'KALITE-ODA-001-G2': {
+    oda: 'Kalite Kontrol Odası',
+    raf: 'G Rafı',
+    hucre: 'G2',
+    tamAdres: 'Kalite Kontrol Odası - G Rafı - G2'
   }
 };
 
-// Mock personeller
-const mockPersoneller = [
-  { id: 'USER-AHMET-001', ad: 'Ahmet Amir', unvan: 'Amir' },
-  { id: 'USER-MEHMET-001', ad: 'Mehmet Kartela', unvan: 'Kartela Sorumlusu' },
-  { id: 'USER-AYSE-001', ad: 'Ayşe Üretim', unvan: 'Üretim Sorumlusu' },
-  { id: 'USER-ALI-001', ad: 'Ali Depo', unvan: 'Depo Sorumlusu' }
-];
+// Mock personeller - mockUsers'dan al
+const mockPersoneller = mockUsers.map(user => ({
+  id: user.id,
+  ad: user.ad,
+  unvan: user.unvan
+}));
 
 // Mock hareket geçmişi oluşturma
 function hareketOlustur(
