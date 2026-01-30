@@ -24,7 +24,7 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
   const [formData, setFormData] = useState({
     renk_kodu: '',
     renk_adi: '',
-    musteri_adi: '',
+   .musteri): '',
     proje_kodu: '',
     rpt_calismasi: '',
     notlar: '',
@@ -36,7 +36,6 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
   // Renk masalarını ve müşterileri yükle
   useEffect(() => {
     fetchRenkMasalari()
-    fetchMusteriler()
   }, [])
 
   // Renk araması
@@ -69,13 +68,12 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
     }
   }
 
-  const fetchMusteriler = async () => {
     try {
       const { data, error } = await supabase
         .from('musteriler')
         .select('*')
         .eq('durum', 'AKTIF')
-        .order('musteri_adi')
+        .order(.musteri)')
         .limit(20)
 
       if (error) throw error
@@ -106,7 +104,7 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
         .insert({
           renk_kodu: formData.renk_kodu,
           renk_adi: formData.renk_adi,
-          musteri_adi: formData.musteri_adi || null,
+         .musteri): formData.musteri_adi || null,
           proje_kodu: formData.proje_kodu || null,
           rpt_calismasi: formData.rpt_calismasi || null,
           durum: 'AKTIF',
@@ -240,14 +238,13 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
                   Müşteri
                 </label>
                 <select
-                  value={formData.musteri_adi}
-                  onChange={(e) => setFormData({...formData, musteri_adi: e.target.value})}
+                  value={formData.musteri)}
+                  onChange={(e) => setFormData({...formData,.musteri): e.target.value})}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 >
                   <option value="">Müşteri Seçin</option>
-                  {musteriler.map((musteri) => (
-                    <option key={musteri.id} value={musteri.musteri_adi}>
-                      {musteri.musteri_adi}
+                    <option key={musteri.id} value={musteri.musteri)}>
+                      {musteri.musteri)}
                     </option>
                   ))}
                   <option value="GENEL">GENEL (Müşterisiz)</option>
