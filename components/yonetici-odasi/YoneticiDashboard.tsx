@@ -53,7 +53,7 @@ export default function YoneticiDashboard({
   useEffect(() => {
     fetchKullanicilar();
     fetchOdalar();
-    fetchOdaDetay(roomId); // ✓ EKLENDİ: Oda detayını çek
+   // fetchOdaDetay(roomId); // ✓ EKLENDİ: Oda detayını çek
   }, [roomId]); // ✓ EKLENDİ: roomId değişince yenile
 
   // ✓ EKLENDİ: Odaya özel detay çekme
