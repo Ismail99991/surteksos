@@ -10,6 +10,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 import QRCode from 'qrcode';
+import { error } from 'console';
 
 type KullaniciType = Database['public']['Tables']['kullanicilar']['Row'];
 type OdaType = Database['public']['Tables']['odalar']['Row'];
@@ -98,36 +99,28 @@ export default function YoneticiDashboard({
 
   const fetchKullanicilar = async () => {
   try {
-    console.log(`🔄 Kullanıcılar yükleniyor, roomId: ${roomId}`);
+    console.log('📡 Kullanıcılar çekiliyor...');
     
     // 1. Önce tüm kullanıcıları çek (gösterilsin)
-    const { data: allUsers, error: allError } = await supabase
+    const { data, Error } = await supabase
       .from('kullanicilar')
       .select('*')
       .order('ad');
     
-    if (allError) throw allError;
-    
-    // 2. Eğer roomId varsa, odaya özel yetkileri de kontrol et (sadece debug)
-    if (roomId) {
-      console.log(`🔍 Oda ${roomId} için yetki kontrolü...`);
-      const { data: roomData, error: roomError } = await supabase
-        .from('kullanici_yetkileri')
-        .select('kullanici_id')
-        .eq('oda_id', roomId);
-      
-      if (!roomError) {
-        console.log(`👥 Oda ${roomId} için ${roomData?.length || 0} yetkili kullanıcı var`);
-      }
+    if (Error) {
+      console.error('❌ Supabase hatası:', error);
+      throw error;
     }
     
-    // 3. Tüm kullanıcıları göster
-    setKullanicilar(allUsers || []);
-    
+    console.log('✅ Gelen data:', data);
+    setKullanicilar(data|| []);
+
   } catch (error) {
-    console.error('Kullanıcılar yüklenemedi:', error);
+    console.error('🔥 Kullanıcılar yüklenemedi:', error);
+    alert('Kullanıcılar yüklenemedi! Console\'a bakın.')
   }
 };
+    
 
   const fetchOdalar = async () => {
     try {
