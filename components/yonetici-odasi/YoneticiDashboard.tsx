@@ -10,7 +10,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 import QRCode from 'qrcode';
-import { error } from 'console';
+
 
 type KullaniciType = Database['public']['Tables']['kullanicilar']['Row'];
 type OdaType = Database['public']['Tables']['odalar']['Row'];
@@ -102,12 +102,12 @@ export default function YoneticiDashboard({
     console.log('📡 Kullanıcılar çekiliyor...');
     
     // 1. Önce tüm kullanıcıları çek (gösterilsin)
-    const { data, Error } = await supabase
+    const { data, error } = await supabase
       .from('kullanicilar')
       .select('*')
       .order('ad');
     
-    if (Error) {
+    if (error) {
       console.error('❌ Supabase hatası:', error);
       throw error;
     }
