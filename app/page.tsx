@@ -188,7 +188,9 @@ export default function HomePage() {
             {currentRoom.name === 'Kartela Odası' ? (
               <KartelaOdaDashboard roomName={currentRoom.name} />
             ) : currentRoom.name === 'Yönetici Odası' ? (
-              <YoneticiDashboard roomName={currentRoom.name} />
+              <YoneticiDashboard
+                roomId={currentRoom.id}  // ← BU EKLENMELİ!
+                roomName={currentRoom.name} />
             ) : (
               <div className="space-y-8">
                 {/* Hoş Geldin */}
