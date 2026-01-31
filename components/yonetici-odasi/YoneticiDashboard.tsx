@@ -97,26 +97,37 @@ export default function YoneticiDashboard({
   };
 
   const fetchKullanicilar = async () => {
-    try {
-      // ✓ DEĞİŞTİRİLDİ: Sadece bu odaya yetkisi olanları çek
-      // Eski: tüm kullanıcılar
-      // Yeni: odaya özel kullanıcılar
-      if (roomId) {
-        await fetchOdayaOzelKullanicilar(roomId);
-      } else {
-        // Fallback: tüm kullanıcılar (eski davranış)
-        const { data, error } = await supabase
-          .from('kullanicilar')
-          .select('*')
-          .order('ad');
-        
-        if (error) throw error;
-        setKullanicilar(data || []);
+  try {
+    console.log(`🔄 Kullanıcılar yükleniyor, roomId: ${roomId}`);
+    
+    // 1. Önce tüm kullanıcıları çek (gösterilsin)
+    const { data: allUsers, error: allError } = await supabase
+      .from('kullanicilar')
+      .select('*')
+      .order('ad');
+    
+    if (allError) throw allError;
+    
+    // 2. Eğer roomId varsa, odaya özel yetkileri de kontrol et (sadece debug)
+    if (roomId) {
+      console.log(`🔍 Oda ${roomId} için yetki kontrolü...`);
+      const { data: roomData, error: roomError } = await supabase
+        .from('kullanici_yetkileri')
+        .select('kullanici_id')
+        .eq('oda_id', roomId);
+      
+      if (!roomError) {
+        console.log(`👥 Oda ${roomId} için ${roomData?.length || 0} yetkili kullanıcı var`);
       }
-    } catch (error) {
-      console.error('Kullanıcılar yüklenemedi:', error);
     }
-  };
+    
+    // 3. Tüm kullanıcıları göster
+    setKullanicilar(allUsers || []);
+    
+  } catch (error) {
+    console.error('Kullanıcılar yüklenemedi:', error);
+  }
+};
 
   const fetchOdalar = async () => {
     try {
