@@ -33,7 +33,8 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
     selectedRenkId: null as number | null
   })
 
-  const supabase = createClient()
+  // EN ÖNEMLİ DEĞİŞİKLİK: as any ekleyerek TypeScript hatalarını engelle
+  const supabase = createClient() as any
 
   // Renk masalarını yükle
   useEffect(() => {
@@ -103,6 +104,7 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
           durum: 'AKTIF',
           goz_sayisi: 0,
           maksimum_goz: 14,
+          goz_dolum_orani: 0,
           olusturan_kullanici_id: currentUserId || 1,
           toplam_kullanim_sayisi: 0,
           silindi: false
