@@ -1,6 +1,8 @@
 'use client';
 
-import { Clock, MapPin, User, Calendar, ArrowRight, Package, Eye, Archive } from 'lucide-react';
+import { useState, useEffect } from 'react'; // ← useEffect ekle
+import { Clock, MapPin, User, Calendar, ArrowRight, Package, Eye, Archive, History, Activity } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 
 type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
@@ -16,11 +18,46 @@ type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
   };
 };
 
+type HareketLog = Database['public']['Tables']['hareket_loglari']['Row'];
+
 interface KartelaDetayProps {
   kartela: Kartela;
+  showHistory?: boolean; // Hareket geçmişini göster/gizle
 }
 
-export default function KartelaDetay({ kartela }: KartelaDetayProps) {
+export default function KartelaDetay({ kartela, showHistory = true }: KartelaDetayProps) {
+  const [hareketler, setHareketler] = useState<HareketLog[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // EN ÖNEMLİ DEĞİŞİKLİK: as any ekle
+  const supabase = createClient() as any;
+
+  // Hareket geçmişini yükle
+  useEffect(() => {
+    if (showHistory && kartela.kartela_no) {
+      fetchHareketGecmisi();
+    }
+  }, [kartela.kartela_no, showHistory]);
+
+  const fetchHareketGecmisi = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('hareket_loglari')
+        .select('*')
+        .or(`kartela_id.eq.${kartela.id},kartela_no.eq.${kartela.kartela_no}`)
+        .order('tarih', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setHareketler(data || []);
+    } catch (error) {
+      console.error('Hareket geçmişi yüklenemedi:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   // Durum renkleri
   const getDurumRenk = (durum: string) => {
     switch (durum) {
@@ -54,6 +91,30 @@ export default function KartelaDetay({ kartela }: KartelaDetayProps) {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Kısa tarih formatı
+  const formatKisaTarih = (tarih: string) => {
+    return new Date(tarih).toLocaleDateString('tr-TR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Hareket tipi ikonu
+  const getHareketIcon = (tip: string) => {
+    switch (tip) {
+      case 'OLUSTURMA': return '🆕';
+      case 'GOZ_EKLEME': return '➕';
+      case 'HUCRE_YERLESTIRME': return '🏠';
+      case 'MUSTERI_ATAMA': return '👤';
+      case 'DOLDU_ARSIV': return '📦';
+      case 'SILINDI': return '🗑️';
+      case 'DURUM_DEGISIMI': return '🔄';
+      default: return '📝';
+    }
   };
 
   return (
@@ -206,9 +267,85 @@ export default function KartelaDetay({ kartela }: KartelaDetayProps) {
         </div>
       </div>
 
+      {/* Hareket Geçmişi */}
+      {showHistory && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <History className="h-5 w-5 text-blue-600" />
+              <h4 className="font-semibold text-gray-900">Hareket Geçmişi</h4>
+            </div>
+            <button
+              onClick={fetchHareketGecmisi}
+              disabled={loadingHistory}
+              className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+            >
+              <Activity className="h-4 w-4" />
+              {loadingHistory ? 'Yükleniyor...' : 'Yenile'}
+            </button>
+          </div>
+          
+          {loadingHistory ? (
+            <div className="text-center py-4">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <p className="mt-2 text-gray-600 text-sm">Hareket geçmişi yükleniyor...</p>
+            </div>
+          ) : hareketler.length > 0 ? (
+            <div className="space-y-3">
+              {hareketler.map((hareket) => (
+                <div key={hareket.id} className="flex items-start gap-3 p-3 bg-white rounded border">
+                  <div className="text-2xl">{getHareketIcon(hareket.hareket_tipi)}</div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {hareket.hareket_tipi.replace(/_/g, ' ')}
+                        </p>
+                        {hareket.aciklama && (
+                          <p className="text-sm text-gray-600 mt-1">{hareket.aciklama}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">{formatKisaTarih(hareket.tarih)}</p>
+                        {hareket.kullanici_kodu && (
+                          <p className="text-xs text-gray-400 mt-1">{hareket.kullanici_kodu}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {(hareket.eski_durum || hareket.yeni_durum) && (
+                      <div className="flex items-center gap-2 mt-2 text-sm">
+                        {hareket.eski_durum && (
+                          <>
+                            <span className="text-gray-500">Eski:</span>
+                            <span className="px-2 py-1 bg-gray-100 rounded">{hareket.eski_durum}</span>
+                          </>
+                        )}
+                        {hareket.yeni_durum && (
+                          <>
+                            <ArrowRight className="h-3 w-3 text-gray-400" />
+                            <span className="text-gray-500">Yeni:</span>
+                            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">{hareket.yeni_durum}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-gray-500">
+              <p>Henüz hareket kaydı bulunmuyor</p>
+              <p className="text-sm text-gray-400 mt-1">Kartela ile ilgili işlemler burada görünecek</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Notlar */}
       {(kartela.durum === 'KULLANIM_DISI' || kartela.silindi) && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-red-800 mb-2">
             <Archive className="h-5 w-5" />
             <h4 className="font-semibold">Kullanım Dışı Bilgisi</h4>
@@ -216,6 +353,7 @@ export default function KartelaDetay({ kartela }: KartelaDetayProps) {
           <p className="text-red-700 text-sm">
             {kartela.silindi ? 'Bu kartela silinmiş.' : 'Bu kartela kullanım dışı bırakılmış.'}
             {kartela.silinme_tarihi && ` Silinme tarihi: ${formatTarih(kartela.silinme_tarihi)}`}
+            {kartela.silen_kullanici_id && ` (Kullanıcı ID: ${kartela.silen_kullanici_id})`}
           </p>
         </div>
       )}

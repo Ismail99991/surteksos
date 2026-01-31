@@ -1,48 +1,103 @@
 'use client'
 
-import { useState } from 'react'
-import { UserPlus, Search, X, Users, Mail, Phone } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { UserPlus, Search, X, Users, Mail, Phone, Building, Check } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/common/Button'
+import { createClient } from '@/lib/supabase/client'
+import type { Database } from '@/types/supabase'
+
+type KartelaType = Database['public']['Tables']['kartelalar']['Row']
+type MusteriType = Database['public']['Tables']['musteriler']['Row']
 
 interface AssignToCustomerProps {
   onClose: () => void
   onAssign: (data: any) => void
+  currentKartelaId?: number // Opsiyonel: Direkt kartela ID ile açılabilir
 }
 
-export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomerProps) {
+export default function AssignToCustomer({ onClose, onAssign, currentKartelaId }: AssignToCustomerProps) {
   const [step, setStep] = useState(1) // 1: Kartela seç, 2: Müşteri seç, 3: Onay
   const [kartelaNo, setKartelaNo] = useState('')
-  const [selectedKartela, setSelectedKartela] = useState<any>(null)
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [selectedKartela, setSelectedKartela] = useState<KartelaType | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<MusteriType | null>(null)
+  const [searchResults, setSearchResults] = useState<KartelaType[]>([])
+  const [customers, setCustomers] = useState<MusteriType[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const customers = [
-    { id: '1', name: 'Nike', email: 'nike@example.com', phone: '+90 555 111 2233', contact: 'Ahmet Yılmaz' },
-    { id: '2', name: 'Zara', email: 'zara@example.com', phone: '+90 555 222 3344', contact: 'Ayşe Demir' },
-    { id: '3', name: 'Mavi', email: 'mavi@example.com', phone: '+90 555 333 4455', contact: 'Mehmet Kaya' },
-    { id: '4', name: 'LC Waikiki', email: 'lcw@example.com', phone: '+90 555 444 5566', contact: 'Fatma Şahin' },
-    { id: '5', name: 'Defacto', email: 'defacto@example.com', phone: '+90 555 555 6677', contact: 'Ali Çelik' },
-    { id: '6', name: 'Koton', email: 'koton@example.com', phone: '+90 555 666 7788', contact: 'Zeynep Arslan' },
-  ]
+  const supabase = createClient() as any
 
-  const handleSearchKartela = () => {
+  // Müşterileri yükle
+  useEffect(() => {
+    fetchCustomers()
+    
+    // Eğer currentKartelaId varsa, direkt o kartelayı yükle
+    if (currentKartelaId) {
+      fetchKartelaById(currentKartelaId)
+    }
+  }, [currentKartelaId])
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('musteriler')
+        .select('*')
+        .order('musteri_adi')
+      
+      if (error) throw error
+      setCustomers(data || [])
+    } catch (error) {
+      console.error('Müşteriler yüklenemedi:', error)
+    }
+  }
+
+  const fetchKartelaById = async (kartelaId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('kartelalar')
+        .select('*')
+        .eq('id', kartelaId)
+        .eq('silindi', false)
+        .single()
+      
+      if (error) throw error
+      
+      if (data) {
+        setSelectedKartela(data)
+        setKartelaNo(data.kartela_no || '')
+        setStep(2) // Direkt müşteri seçimine geç
+      }
+    } catch (error) {
+      console.error('Kartela yüklenemedi:', error)
+    }
+  }
+
+  const handleSearchKartela = async () => {
     if (!kartelaNo.trim()) return
     
-    // Mock search
-    const results = [
-      {
-        id: '1',
-        renk_kodu: kartelaNo,
-        musteri: null, // Henüz atanmamış
-        durum: 'arsivde',
-        tip: 'genel',
-        olusturma_tarihi: '2024-01-20T10:30:00Z',
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('kartelalar')
+        .select('*')
+        .or(`kartela_no.ilike.%${kartelaNo}%,renk_kodu.ilike.%${kartelaNo}%`)
+        .eq('silindi', false)
+        .eq('musteri_adi', null) // Sadece müşteri atanmamış olanlar
+        .limit(10)
+      
+      if (error) throw error
+      
+      setSearchResults(data || [])
+      
+      if (data && data.length === 1) {
+        setSelectedKartela(data[0])
       }
-    ]
-    
-    setSearchResults(results)
-    setSelectedKartela(results[0])
+    } catch (error) {
+      console.error('Kartela arama hatası:', error)
+      setSearchResults([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleNext = () => {
@@ -53,17 +108,64 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
     }
   }
 
-  const handleAssign = () => {
-    const assignmentData = {
-      kartela: selectedKartela,
-      customer: selectedCustomer,
-      assignmentDate: new Date().toISOString(),
-      assignedBy: 'Kartela Odası Sorumlusu',
-      notes: 'Müşteriye özel kartela oluşturuldu',
-    }
+  const handleAssign = async () => {
+    if (!selectedKartela || !selectedCustomer) return
     
-    onAssign(assignmentData)
-    onClose()
+    setLoading(true)
+    try {
+      // 1. Kartelayı müşteriye ata
+      const { error: updateError } = await supabase
+        .from('kartelalar')
+        .update({
+          musteri_adi: selectedCustomer.musteri_adi,
+          proje_kodu: selectedCustomer.musteri_kodu,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedKartela.id)
+      
+      if (updateError) throw updateError
+      
+      // 2. Hareket logu oluştur
+      await supabase
+        .from('hareket_loglari')
+        .insert({
+          kartela_id: selectedKartela.id,
+          kartela_no: selectedKartela.kartela_no,
+          hareket_tipi: 'MUSTERI_ATAMA',
+          kullanici_id: 1, // TODO: currentUserId ekle
+          kullanici_kodu: 'SYSTEM',
+          aciklama: `${selectedKartela.kartela_no} kartelası ${selectedCustomer.musteri_adi} müşterisine atandı`,
+          tarih: new Date().toISOString()
+        })
+      
+      // 3. Müşteri istatistiklerini güncelle
+      await supabase
+        .from('musteriler')
+        .update({
+          aktif_kartela_sayisi: (selectedCustomer.aktif_kartela_sayisi || 0) + 1,
+          toplam_kartela_sayisi: (selectedCustomer.toplam_kartela_sayisi || 0) + 1
+        })
+        .eq('id', selectedCustomer.id)
+      
+      const assignmentData = {
+        kartela: selectedKartela,
+        customer: selectedCustomer,
+        assignmentDate: new Date().toISOString(),
+        assignedBy: 'Kartela Odası Sorumlusu',
+        notes: 'Müşteriye özel kartela oluşturuldu',
+      }
+      
+      onAssign(assignmentData)
+      onClose()
+      
+      alert('✅ Kartela müşteriye başarıyla atandı!')
+      
+    } catch (error) {
+      console.error('Atama hatası:', error)
+      alert('❌ Kartela atanamadı!')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -84,6 +186,7 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg"
+              disabled={loading}
             >
               <X className="w-5 h-5" />
             </button>
@@ -100,9 +203,9 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
                       step > stepNum ? 'bg-green-600 text-white' : 
                       'bg-gray-200 text-gray-600'}
                   `}>
-                    {step > stepNum ? '✓' : stepNum}
+                    {step > stepNum ? <Check className="w-5 h-5" /> : stepNum}
                   </div>
-                  <p className="text-sm mt-2">
+                  <p className="text-sm mt-2 font-medium">
                     {stepNum === 1 && 'Kartela Seç'}
                     {stepNum === 2 && 'Müşteri Seç'}
                     {stepNum === 3 && 'Onay'}
@@ -117,7 +220,7 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kartela No Ara
+                  Kartela No veya Renk Kodu Ara
                 </label>
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
@@ -126,28 +229,104 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
                       value={kartelaNo}
                       onChange={(e) => setKartelaNo(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSearchKartela()}
-                      placeholder="231010001.1 veya son 4 hane"
+                      placeholder="Kartela No (KRT-001) veya Renk Kodu (23011737.1)"
                       className="w-full px-4 py-3 pl-11 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      disabled={loading}
                     />
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   </div>
-                  <Button onClick={handleSearchKartela}>
-                    Ara
+                  <Button 
+                    onClick={handleSearchKartela}
+                    disabled={loading || !kartelaNo.trim()}
+                  >
+                    {loading ? 'Aranıyor...' : 'Ara'}
                   </Button>
                 </div>
               </div>
 
+              {/* Arama Sonuçları */}
+              {searchResults.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b">
+                    <h4 className="font-semibold text-gray-900">Bulunan Kartelalar</h4>
+                    <p className="text-sm text-gray-600">Müşteri atanmamış kartelalar</p>
+                  </div>
+                  <div className="divide-y">
+                    {searchResults.map((kartela) => (
+                      <div
+                        key={kartela.id}
+                        onClick={() => setSelectedKartela(kartela)}
+                        className={`p-4 cursor-pointer transition-colors ${
+                          selectedKartela?.id === kartela.id 
+                            ? 'bg-blue-50 border-l-4 border-blue-500' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-bold text-gray-900">
+                              {kartela.kartela_no || 'KRT-' + kartela.id}
+                            </div>
+                            <div className="text-sm text-gray-600">{kartela.renk_kodu} - {kartela.renk_adi}</div>
+                          </div>
+                          {selectedKartela?.id === kartela.id && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <Check className="w-5 h-5" />
+                              <span className="text-sm font-medium">Seçildi</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-3">
+                          <div className="text-sm">
+                            <span className="text-gray-500">Durum:</span>{' '}
+                            <span className={`font-medium ${
+                              kartela.durum === 'AKTIF' ? 'text-green-600' :
+                              kartela.durum === 'DOLU' ? 'text-blue-600' :
+                              'text-gray-600'
+                            }`}>
+                              {kartela.durum}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-500">Göz:</span>{' '}
+                            <span className="font-medium">{kartela.goz_sayisi}/{kartela.maksimum_goz}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {selectedKartela && (
                 <div className="p-4 border border-green-200 bg-green-50 rounded-lg">
-                  <h4 className="font-semibold text-green-800 mb-2">✅ Kartela Bulundu</h4>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Check className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-green-800">✅ Kartela Seçildi</h4>
+                      <p className="text-sm text-green-700">Bu kartelayı müşteriye atayabilirsiniz</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-500">Kartela No</p>
+                      <p className="font-medium">{selectedKartela.kartela_no}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Renk</p>
                       <p className="font-medium">{selectedKartela.renk_kodu}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Durum</p>
                       <p className="font-medium">Atanmamış (Genel)</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Oluşturulma</p>
+                      <p className="font-medium">
+                        {new Date(selectedKartela.olusturulma_tarihi).toLocaleDateString('tr-TR')}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -159,42 +338,56 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
           {step === 2 && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Müşteri Seçin
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {customers.map((customer) => (
-                    <div
-                      key={customer.id}
-                      onClick={() => setSelectedCustomer(customer)}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                        selectedCustomer?.id === customer.id
-                          ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200'
-                          : 'border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <Users className="w-5 h-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900">{customer.name}</h4>
-                          <p className="text-sm text-gray-500">{customer.contact}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="w-4 h-4 text-gray-400" />
-                          <span>{customer.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          <span>{customer.phone}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Müşteri Seçin
+                  </label>
+                  <span className="text-sm text-gray-500">
+                    {customers.length} müşteri
+                  </span>
                 </div>
+                
+                {customers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>Henüz müşteri eklenmemiş</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {customers.map((customer) => (
+                      <div
+                        key={customer.id}
+                        onClick={() => setSelectedCustomer(customer)}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                          selectedCustomer?.id === customer.id
+                            ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            <Building className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-gray-900">{customer.musteri_adi}</h4>
+                            <p className="text-sm text-gray-500">{customer.musteri_kodu}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm">
+                            <span className="text-gray-500">Aktif Kartela:</span>{' '}
+                            <span className="font-medium">{customer.aktif_kartela_sayisi || 0}</span>
+                          </div>
+                          {selectedCustomer?.id === customer.id && (
+                            <div className="text-green-600">
+                              <Check className="w-5 h-5" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -209,37 +402,78 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Kartela Bilgisi */}
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border shadow-sm">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <span className="text-blue-600">📦</span> Kartela
                     </h4>
                     <div className="space-y-2">
-                      <p><span className="text-gray-500">No:</span> <strong>{selectedKartela.renk_kodu}</strong></p>
-                      <p><span className="text-gray-500">Tip:</span> Genel → Özel</p>
-                      <p><span className="text-gray-500">İşlem:</span> Müşteriye Atanacak</p>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">No:</span>
+                        <strong>{selectedKartela.kartela_no}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Renk:</span>
+                        <span>{selectedKartela.renk_kodu} - {selectedKartela.renk_adi}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Durum:</span>
+                        <span className={`font-medium ${
+                          selectedKartela.durum === 'AKTIF' ? 'text-green-600' : 'text-blue-600'
+                        }`}>
+                          {selectedKartela.durum}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Göz:</span>
+                        <span>{selectedKartela.goz_sayisi}/{selectedKartela.maksimum_goz}</span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Müşteri Bilgisi */}
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border shadow-sm">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <span className="text-purple-600">👤</span> Müşteri
+                      <span className="text-purple-600">🏢</span> Müşteri
                     </h4>
                     <div className="space-y-2">
-                      <p><strong>{selectedCustomer.name}</strong></p>
-                      <p>{selectedCustomer.contact}</p>
-                      <p className="text-sm text-gray-500">{selectedCustomer.email}</p>
-                      <p className="text-sm text-gray-500">{selectedCustomer.phone}</p>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Adı:</span>
+                        <strong>{selectedCustomer.musteri_adi}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Kodu:</span>
+                        <span>{selectedCustomer.musteri_kodu}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Durum:</span>
+                        <span className={`font-medium ${
+                          selectedCustomer.durum === 'AKTIF' ? 'text-green-600' : 'text-gray-600'
+                        }`}>
+                          {selectedCustomer.durum || 'AKTİF'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Aktif Kartela:</span>
+                        <span>{selectedCustomer.aktif_kartela_sayisi || 0}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Uyarı */}
                 <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-amber-700 text-sm">
-                    ⚠️ Bu işlem sonrasında kartela artık <strong>{selectedCustomer.name}</strong> müşterisine özel olacaktır.
-                    Diğer müşteriler bu kartelayı göremeyecek.
-                  </p>
+                  <div className="flex items-start gap-3">
+                    <div className="p-1 bg-amber-100 rounded">
+                      <span className="text-amber-700">⚠️</span>
+                    </div>
+                    <div>
+                      <p className="text-amber-800 font-medium mb-1">Dikkat!</p>
+                      <p className="text-amber-700 text-sm">
+                        Bu işlem sonrasında kartela artık <strong>{selectedCustomer.musteri_adi}</strong> müşterisine özel olacaktır.
+                        Diğer müşteriler bu kartelayı göremeyecek ve raporlarda sadece bu müşteriye ait olarak görünecektir.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -252,6 +486,7 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
                 type="button"
                 variant="outline"
                 onClick={() => setStep(step - 1)}
+                disabled={loading}
               >
                 ← Geri
               </Button>
@@ -262,6 +497,7 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
                 type="button"
                 variant="outline"
                 onClick={onClose}
+                disabled={loading}
               >
                 İptal
               </Button>
@@ -272,20 +508,31 @@ export default function AssignToCustomer({ onClose, onAssign }: AssignToCustomer
                   variant="primary"
                   onClick={handleNext}
                   disabled={
+                    loading ||
                     (step === 1 && !selectedKartela) ||
                     (step === 2 && !selectedCustomer)
                   }
                 >
-                  İleri →
+                  {loading ? 'Yükleniyor...' : 'İleri →'}
                 </Button>
               ) : (
                 <Button
                   type="button"
                   variant="primary"
                   onClick={handleAssign}
+                  disabled={loading}
                 >
-                  <UserPlus className="w-5 h-5 mr-2" />
-                  Kartelayı Ata
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Atanıyor...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-5 h-5 mr-2" />
+                      Kartelayı Ata
+                    </>
+                  )}
                 </Button>
               )}
             </div>

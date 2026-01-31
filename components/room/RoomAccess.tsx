@@ -2,136 +2,149 @@
 
 import { useState, useEffect } from 'react'
 import { QrCode, User, DoorOpen, CheckCircle, XCircle } from 'lucide-react'
-import { mockUsers } from '@/utils/mockUsers'
+import { createClient } from '@/lib/supabase/client' // ← Gerçek Supabase
+import type { Database } from '@/types/supabase'
 
 interface RoomAccessProps {
   onAccessGranted: (userData: any, roomData: any) => void
   onAccessDenied: (reason: string) => void
 }
 
-// Oda QR Kodları - YÖNETİCİ ODASI EKLENDİ
-const roomQRCodes: Record<string, string> = {
-  'Amir Odası': 'AMIR-ODA-001',
-  'Kartela Odası': 'KARTELA-ODA-001',
-  'Üretim Alanı': 'URETIM-ALAN-001',
-  'Depo': 'DEPO-001',
-  'Yönetici Odası': 'YONETICI-ODA-001', // YENİ
-  'Kalite Kontrol Odası': 'KALITE-ODA-001' // YENİ
-}
-
-// Oda bilgileri
-const roomDataMap: Record<string, any> = {
-  'AMIR-ODA-001': { 
-    id: 'room_amir', 
-    name: 'Amir Odası', 
-    type: 'management',
-    description: 'Yönetim ve izleme odası'
-  },
-  'KARTELA-ODA-001': { 
-    id: 'room_kartela', 
-    name: 'Kartela Odası', 
-    type: 'storage',
-    description: 'Kartela depolama ve yönetim'
-  },
-  'URETIM-ALAN-001': { 
-    id: 'room_uretim', 
-    name: 'Üretim Alanı', 
-    type: 'production',
-    description: 'Üretim ve işleme alanı'
-  },
-  'DEPO-001': { 
-    id: 'room_depo', 
-    name: 'Depo', 
-    type: 'warehouse',
-    description: 'Stok ve depolama alanı'
-  },
-  'YONETICI-ODA-001': { 
-    id: 'room_yonetici', 
-    name: 'Yönetici Odası', 
-    type: 'admin',
-    description: 'Sistem yönetimi ve yetki kontrolü',
-    restricted: true
-  },
-  'KALITE-ODA-001': { 
-    id: 'room_kalite', 
-    name: 'Kalite Kontrol Odası', 
-    type: 'quality',
-    description: 'Kalite test ve onay odası'
-  }
-}
+type UserType = Database['public']['Tables']['kullanicilar']['Row']
+type RoomType = Database['public']['Tables']['odalar']['Row']
+type UserPermissionType = Database['public']['Tables']['kullanici_yetkileri']['Row']
 
 export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAccessProps) {
   const [step, setStep] = useState<'user' | 'room'>('user')
   const [userInput, setUserInput] = useState('')
   const [roomInput, setRoomInput] = useState('')
-  const [scannedUser, setScannedUser] = useState<any>(null)
-  const [scannedRoom, setScannedRoom] = useState<any>(null)
+  const [scannedUser, setScannedUser] = useState<UserType | null>(null)
+  const [scannedRoom, setScannedRoom] = useState<RoomType | null>(null)
   const [status, setStatus] = useState<'idle' | 'checking' | 'granted' | 'denied'>('idle')
   const [statusMessage, setStatusMessage] = useState('')
+  const [allRooms, setAllRooms] = useState<RoomType[]>([])
 
-  // Kullanıcı barkodu kontrolü
-  const checkUserBarcode = (barcode: string) => {
+  const supabase = createClient() as any
+
+  // Odaları yükle
+  useEffect(() => {
+    fetchRooms()
+  }, [])
+
+  const fetchRooms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('odalar')
+        .select('*')
+        .eq('aktif', true)
+        .order('oda_kodu')
+
+      if (error) throw error
+      setAllRooms(data || [])
+    } catch (error) {
+      console.error('Odalar yüklenemedi:', error)
+    }
+  }
+
+  // Kullanıcı barkodu kontrolü - GERÇEK VERİTABANI
+  const checkUserBarcode = async (barcode: string) => {
     setStatus('checking')
     setStatusMessage('Kullanıcı kontrol ediliyor...')
 
-    setTimeout(() => {
-      const user = mockUsers.find(u => u.barkod === barcode)
-      
+    try {
+      const { data: user, error } = await supabase
+        .from('kullanicilar')
+        .select('*')
+        .eq('qr_kodu', barcode)
+        .eq('aktif', true)
+        .single()
+
+      if (error) throw error
+
       if (user) {
-        if (user.durum === 'aktif') {
-          setScannedUser(user)
-          setStep('room')
-          setStatus('idle')
-          setStatusMessage('')
-        } else {
-          setStatus('denied')
-          setStatusMessage('⚠️ Bu kullanıcı hesabı pasif durumda')
-          onAccessDenied('Pasif kullanıcı hesabı')
-        }
+        setScannedUser(user)
+        setStep('room')
+        setStatus('idle')
+        setStatusMessage('')
       } else {
         setStatus('denied')
         setStatusMessage('❌ Geçersiz kullanıcı barkodu')
         onAccessDenied('Geçersiz kullanıcı barkodu')
       }
-    }, 1000)
+    } catch (error) {
+      console.error('Kullanıcı kontrol hatası:', error)
+      setStatus('denied')
+      setStatusMessage('❌ Kullanıcı bulunamadı veya pasif durumda')
+      onAccessDenied('Kullanıcı bulunamadı')
+    }
   }
 
-  // Oda QR kodu kontrolü
-  const checkRoomQRCode = (qrCode: string) => {
+  // Oda QR kodu kontrolü - GERÇEK VERİTABANI
+  const checkRoomQRCode = async (qrCode: string) => {
     if (!scannedUser) return
 
     setStatus('checking')
     setStatusMessage('Oda yetkisi kontrol ediliyor...')
 
-    setTimeout(() => {
-      const roomData = roomDataMap[qrCode]
-      
-      if (!roomData) {
+    try {
+      // 1. Odayı bul
+      const { data: room, error: roomError } = await supabase
+        .from('odalar')
+        .select('*')
+        .eq('qr_kodu', qrCode)
+        .eq('aktif', true)
+        .single()
+
+      if (roomError || !room) {
         setStatus('denied')
         setStatusMessage('❌ Geçersiz oda QR kodu')
         onAccessDenied('Geçersiz oda QR kodu')
         return
       }
 
-      // Kullanıcının odaya erişim yetkisi var mı?
-      const hasAccess = scannedUser.odalar.includes(roomData.name)
-      
-      if (hasAccess) {
-        setScannedRoom(roomData)
-        setStatus('granted')
-        setStatusMessage('✅ Erişim izni verildi!')
-        
-        // 1.5 saniye sonra erişim ver
-        setTimeout(() => {
-          onAccessGranted(scannedUser, roomData)
-          resetScanner()
-        }, 1500)
-      } else {
+      // 2. Kullanıcının bu odaya yetkisi var mı?
+      const { data: permission, error: permError } = await supabase
+        .from('kullanici_yetkileri')
+        .select('*')
+        .eq('kullanici_id', scannedUser.id)
+        .eq('oda_id', room.id)
+        .single()
+
+      if (permError || !permission) {
         setStatus('denied')
         setStatusMessage(`⛔ ${scannedUser.ad} bu odaya erişim yetkisine sahip değil`)
-        onAccessDenied(`Yetkisiz oda erişimi: ${roomData.name}`)
+        onAccessDenied(`Yetkisiz oda erişimi: ${room.oda_adi}`)
+        return
       }
-    }, 1000)
+
+      // 3. Erişim izni ver
+      setScannedRoom(room)
+      setStatus('granted')
+      setStatusMessage('✅ Erişim izni verildi!')
+
+      // 4. Log kaydı oluştur (hareket_loglari)
+      await supabase
+        .from('hareket_loglari')
+        .insert({
+          hareket_tipi: 'ODA_GIRIS',
+          kullanici_id: scannedUser.id,
+          kullanici_kodu: scannedUser.kullanici_kodu,
+          aciklama: `${scannedUser.ad} ${room.oda_adi} odasına giriş yaptı`,
+          tarih: new Date().toISOString()
+        })
+
+      // 5. Callback çağır
+      setTimeout(() => {
+        onAccessGranted(scannedUser, room)
+        resetScanner()
+      }, 1500)
+
+    } catch (error) {
+      console.error('Oda kontrol hatası:', error)
+      setStatus('denied')
+      setStatusMessage('❌ Sistem hatası, lütfen tekrar deneyin')
+      onAccessDenied('Sistem hatası')
+    }
   }
 
   const resetScanner = () => {
@@ -160,20 +173,21 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
     }
   }
 
-  // Test için hızlı barkodlar
-  const quickUserBarcodes = mockUsers.slice(0, 4).map(u => ({
-    name: u.ad.split(' ')[0],
-    barcode: u.barkod
-  }))
+  // Test için hızlı barkodlar (opsiyonel - geliştirme için)
+  const quickUserBarcodes = [
+    { name: 'Test User 1', barcode: 'USER-001' },
+    { name: 'Test User 2', barcode: 'USER-002' },
+    { name: 'Test User 3', barcode: 'USER-003' },
+  ]
 
-  const quickRoomQRCodes = Object.entries(roomQRCodes).slice(0, 4).map(([name, code]) => ({
-    name,
-    code
+  const quickRoomQRCodes = allRooms.slice(0, 4).map(room => ({
+    name: room.oda_adi,
+    code: room.qr_kodu || ''
   }))
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Adım Göstergesi */}
+      {/* Adım Göstergesi (Aynı) */}
       <div className="flex justify-center mb-12">
         <div className="flex items-center">
           <div className={`flex flex-col items-center ${step === 'user' ? 'text-blue-600' : 'text-green-600'}`}>
@@ -192,7 +206,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
         </div>
       </div>
 
-      {/* Scanner Alanı */}
+      {/* Scanner Alanı (Aynı UI, sadece fonksiyonlar değişti) */}
       <div className="bg-white rounded-2xl shadow-xl p-8">
         {step === 'user' ? (
           // PERSONEL BARKODU ADIMI
@@ -203,7 +217,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
               </div>
               <h3 className="text-2xl font-bold text-gray-900">Personel Barkodu</h3>
               <p className="text-gray-600 mt-2">
-                Personel kimlik kartınızın barkodunu taratın veya aşağıdaki test barkodlarını kullanın
+                Personel kimlik kartınızın barkodunu taratın
               </p>
             </div>
 
@@ -216,7 +230,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
                   type="text"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="USER-XXXX-XXX formatında barkod taratın"
+                  placeholder="Kullanıcı QR kodunu taratın"
                   className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   autoFocus
                 />
@@ -229,24 +243,26 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
               </button>
             </form>
 
-            {/* Test Barkodları */}
-            <div className="mb-6">
-              <p className="text-gray-600 text-sm mb-3">Test için hızlı barkodlar:</p>
-              <div className="flex flex-wrap gap-2">
-                {quickUserBarcodes.map((item) => (
-                  <button
-                    key={item.barcode}
-                    onClick={() => {
-                      setUserInput(item.barcode)
-                      setTimeout(() => checkUserBarcode(item.barcode), 100)
-                    }}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition-colors"
-                  >
-                    {item.name} ({item.barcode})
-                  </button>
-                ))}
+            {/* Test Barkodları (opsiyonel) */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-6">
+                <p className="text-gray-600 text-sm mb-3">Test barkodları:</p>
+                <div className="flex flex-wrap gap-2">
+                  {quickUserBarcodes.map((item) => (
+                    <button
+                      key={item.barcode}
+                      onClick={() => {
+                        setUserInput(item.barcode)
+                        setTimeout(() => checkUserBarcode(item.barcode), 100)
+                      }}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition-colors"
+                    >
+                      {item.name} ({item.barcode})
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           // ODA QR KODU ADIMI
@@ -273,7 +289,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
                   type="text"
                   value={roomInput}
                   onChange={(e) => setRoomInput(e.target.value)}
-                  placeholder="XXX-ODA-XXX formatında QR kod taratın"
+                  placeholder="Oda QR kodunu taratın"
                   className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
                   autoFocus
                 />
@@ -286,24 +302,26 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
               </button>
             </form>
 
-            {/* Test QR Kodları */}
-            <div className="mb-6">
-              <p className="text-gray-600 text-sm mb-3">Test için hızlı QR kodlar:</p>
-              <div className="flex flex-wrap gap-2">
-                {quickRoomQRCodes.map((item) => (
-                  <button
-                    key={item.code}
-                    onClick={() => {
-                      setRoomInput(item.code)
-                      setTimeout(() => checkRoomQRCode(item.code), 100)
-                    }}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition-colors"
-                  >
-                    {item.name} ({item.code})
-                  </button>
-                ))}
+            {/* Test QR Kodları (opsiyonel) */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-6">
+                <p className="text-gray-600 text-sm mb-3">Test QR kodları:</p>
+                <div className="flex flex-wrap gap-2">
+                  {quickRoomQRCodes.map((item) => (
+                    <button
+                      key={item.code}
+                      onClick={() => {
+                        setRoomInput(item.code)
+                        setTimeout(() => checkRoomQRCode(item.code), 100)
+                      }}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition-colors"
+                    >
+                      {item.name} ({item.code})
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <button
               onClick={resetScanner}
@@ -314,7 +332,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
           </div>
         )}
 
-        {/* Durum Mesajı */}
+        {/* Durum Mesajı (Aynı) */}
         {status !== 'idle' && (
           <div className={`mt-6 p-4 rounded-xl border-2 ${
             status === 'granted' ? 'border-green-200 bg-green-50' :
@@ -344,63 +362,21 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
         )}
       </div>
 
-      {/* Kullanım Talimatları */}
-      <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
-        <h4 className="font-bold text-blue-800 mb-3">📋 Kullanım Talimatları</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
-          <div>
-            <p className="font-medium mb-1">ADIM 1: Personel Barkodu</p>
-            <p>• Personel kimlik kartınızın barkodunu taratın</p>
-            <p>• Format: <code className="bg-white px-2 py-1 rounded">USER-AHMET-001</code></p>
-          </div>
-          <div>
-            <p className="font-medium mb-1">ADIM 2: Oda QR Kodu</p>
-            <p>• Oda girişindeki QR kodunu taratın</p>
-            <p>• Format: <code className="bg-white px-2 py-1 rounded">AMIR-ODA-001</code></p>
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-blue-200">
-          <p className="text-sm text-blue-600">
-            💡 <strong>Güvenlik Notu:</strong> Her personel sadece yetkili olduğu odalara girebilir. 
-            Yetkisiz giriş denemeleri kayıt altına alınır.
-          </p>
-        </div>
-      </div>
-
-      {/* TEST KULLANICI ve ODALAR */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl p-6 border">
-          <h5 className="font-bold text-gray-900 mb-3">👥 TEST KULLANICILARI</h5>
-          <div className="space-y-3">
-            {mockUsers.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium">{user.ad}</div>
-                  <div className="text-sm text-gray-500">{user.unvan}</div>
-                </div>
-                <code className="text-sm bg-white px-2 py-1 rounded border">
-                  {user.barkod}
-                </code>
+      {/* Oda Listesi (Gerçek veritabanından) */}
+      <div className="mt-8 bg-white rounded-xl p-6 border">
+        <h5 className="font-bold text-gray-900 mb-3">🚪 SİSTEMDEKİ ODALAR</h5>
+        <div className="space-y-3">
+          {allRooms.map((room) => (
+            <div key={room.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <div className="font-medium">{room.oda_adi}</div>
+                <div className="text-sm text-gray-500">{room.oda_kodu}</div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border">
-          <h5 className="font-bold text-gray-900 mb-3">🚪 TEST ODALARI</h5>
-          <div className="space-y-3">
-            {Object.entries(roomQRCodes).map(([name, code]) => (
-              <div key={code} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium">{name}</div>
-                  <div className="text-sm text-gray-500">{roomDataMap[code]?.description}</div>
-                </div>
-                <code className="text-sm bg-white px-2 py-1 rounded border">
-                  {code}
-                </code>
-              </div>
-            ))}
-          </div>
+              <code className="text-sm bg-white px-2 py-1 rounded border">
+                {room.qr_kodu || 'QR Yok'}
+              </code>
+            </div>
+          ))}
         </div>
       </div>
     </div>

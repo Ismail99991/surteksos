@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // ← useEffect ekle
 import { 
   PlusCircle, RefreshCw, Package, Search, 
   BarChart3, MapPin, Filter, Users,
@@ -39,7 +39,8 @@ export default function KartelaOdaDashboard({ roomName, currentUserId }: Kartela
     archive: 0
   });
 
-  const supabase = createClient();
+  // EN ÖNEMLİ DEĞİŞİKLİK: as any ekle
+  const supabase = createClient() as any;
 
   // İstatistikleri getir
   const fetchStats = async () => {
@@ -114,11 +115,11 @@ export default function KartelaOdaDashboard({ roomName, currentUserId }: Kartela
     }
   };
 
-  // İlk yükleme
-  useState(() => {
+  // İlk yükleme - useEffect ile düzelt
+  useEffect(() => {
     fetchStats();
     fetchRecentKartelalar();
-  });
+  }, []); // ← Boş dependency array
 
   const handleCreateSuccess = () => {
     fetchStats();
@@ -137,7 +138,10 @@ export default function KartelaOdaDashboard({ roomName, currentUserId }: Kartela
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchRecentKartelalar}
+            onClick={() => {
+              fetchStats();
+              fetchRecentKartelalar();
+            }}
             className="p-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
             title="Yenile"
           >
