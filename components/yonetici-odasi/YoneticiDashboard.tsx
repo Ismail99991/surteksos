@@ -17,10 +17,15 @@ type YetkiType = Database['public']['Tables']['kullanici_yetkileri']['Row'];
 
 interface YoneticiDashboardProps {
   roomName: string;
+  roomId: number; // ✓ EKLENDİ: Oda ID'si zorunlu
   currentUserId?: number;
 }
 
-export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiDashboardProps) {
+export default function YoneticiDashboard({ 
+  roomName, 
+  roomId,  // ✓ EKLENDİ
+  currentUserId 
+}: YoneticiDashboardProps) {
   const [kullanicilar, setKullanicilar] = useState<KullaniciType[]>([]);
   const [odalar, setOdalar] = useState<OdaType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,27 +43,76 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
     unvan: '',
     departman: '',
     qr_kodu: '',
-    sifre_hash: 'temp123', // Geçici, gerçek projede hash'le
+    sifre_hash: 'temp123',
     aktif: true
   });
 
   const supabase = createClient() as any;
 
-  // Verileri yükle
+  // Verileri yükle - roomId dependency olarak eklendi
   useEffect(() => {
     fetchKullanicilar();
     fetchOdalar();
-  }, []);
+    fetchOdaDetay(roomId); // ✓ EKLENDİ: Oda detayını çek
+  }, [roomId]); // ✓ EKLENDİ: roomId değişince yenile
+
+  // ✓ EKLENDİ: Odaya özel detay çekme
+  const fetchOdaDetay = async (id: number) => {
+    try {
+      console.log(`📂 Oda ID ${id} için detay çekiliyor...`);
+      const { data, error } = await supabase
+        .from('odalar')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      console.log('✅ Oda detayı:', data);
+      
+    } catch (error) {
+      console.error('❌ Oda detayı yüklenemedi:', error);
+    }
+  };
+
+  // ✓ EKLENDİ: Sadece bu odaya yetkisi olan kullanıcıları çek
+  const fetchOdayaOzelKullanicilar = async (odaId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('kullanici_yetkileri')
+        .select(`
+          kullanici_id,
+          kullanicilar (*)
+        `)
+        .eq('oda_id', odaId);
+      
+      if (error) throw error;
+      
+      const kullaniciListesi = data?.map(item => item.kullanicilar) || [];
+      setKullanicilar(kullaniciListesi);
+      console.log(`✅ Oda ${odaId} için ${kullaniciListesi.length} kullanıcı bulundu`);
+      
+    } catch (error) {
+      console.error('❌ Odaya özel kullanıcılar yüklenemedi:', error);
+    }
+  };
 
   const fetchKullanicilar = async () => {
     try {
-      const { data, error } = await supabase
-        .from('kullanicilar')
-        .select('*')
-        .order('ad');
-      
-      if (error) throw error;
-      setKullanicilar(data || []);
+      // ✓ DEĞİŞTİRİLDİ: Sadece bu odaya yetkisi olanları çek
+      // Eski: tüm kullanıcılar
+      // Yeni: odaya özel kullanıcılar
+      if (roomId) {
+        await fetchOdayaOzelKullanicilar(roomId);
+      } else {
+        // Fallback: tüm kullanıcılar (eski davranış)
+        const { data, error } = await supabase
+          .from('kullanicilar')
+          .select('*')
+          .order('ad');
+        
+        if (error) throw error;
+        setKullanicilar(data || []);
+      }
     } catch (error) {
       console.error('Kullanıcılar yüklenemedi:', error);
     }
@@ -105,10 +159,8 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
     const qrText = `USER-${user.kullanici_kodu}-${Date.now()}`;
     
     try {
-      // QR kodu oluştur
       const qrCode = await generateQRCode(qrText);
       
-      // Kullanıcıyı güncelle
       const { error } = await supabase
         .from('kullanicilar')
         .update({ qr_kodu: qrText })
@@ -116,10 +168,7 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
       
       if (error) throw error;
       
-      // Kullanıcı listesini güncelle
       await fetchKullanicilar();
-      
-      // QR kodunu göster
       setQrCodeData(qrCode);
       alert('QR kodu oluşturuldu ve kullanıcıya atandı!');
       
@@ -137,10 +186,8 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
     const qrText = `ROOM-${oda.oda_kodu}-${Date.now()}`;
     
     try {
-      // QR kodu oluştur
       const qrCode = await generateQRCode(qrText);
       
-      // Odayı güncelle
       const { error } = await supabase
         .from('odalar')
         .update({ qr_kodu: qrText })
@@ -148,10 +195,7 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
       
       if (error) throw error;
       
-      // Oda listesini güncelle
       await fetchOdalar();
-      
-      // QR kodunu göster
       setQrCodeData(qrCode);
       alert('Oda QR kodu oluşturuldu!');
       
@@ -191,7 +235,6 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
 
     try {
       if (editingUser) {
-        // Düzenleme
         const { error } = await supabase
           .from('kullanicilar')
           .update(newUser)
@@ -200,7 +243,6 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
         if (error) throw error;
         alert('Kullanıcı güncellendi!');
       } else {
-        // Yeni kullanıcı
         const { error } = await supabase
           .from('kullanicilar')
           .insert([newUser]);
@@ -233,10 +275,10 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
     setEditingUser(null);
   };
 
-  // Kullanıcı yetkilerini yönet
+  // Kullanıcı yetkilerini yönet - ✓ GÜNCELLENDİ: Bu oda için yetki kontrolü
   const handleYetkiYonet = async (user: KullaniciType, odaId: number, yetki: keyof YetkiType) => {
     try {
-      // Mevcut yetkiyi kontrol et
+      // Önce bu kullanıcının bu odada yetkisi var mı kontrol et
       const { data: existing, error: checkError } = await supabase
         .from('kullanici_yetkileri')
         .select('*')
@@ -247,7 +289,6 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
       if (checkError && checkError.code !== 'PGRST116') throw checkError;
       
       if (existing) {
-        // Güncelle
         const { error } = await supabase
           .from('kullanici_yetkileri')
           .update({ [yetki]: !existing[yetki] })
@@ -255,7 +296,7 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
         
         if (error) throw error;
       } else {
-        // Yeni yetki oluştur
+        // Yeni yetki oluştur - sadece bu oda için
         const { error } = await supabase
           .from('kullanici_yetkileri')
           .insert([{
@@ -308,9 +349,12 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
     document.body.removeChild(link);
   };
 
+  // ✓ EKLENDİ: Debug için oda ID gösterimi
+  console.log(`🚀 Dashboard çalışıyor: Oda ID=${roomId}, Oda Adı=${roomName}`);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      {/* Başlık */}
+      {/* Başlık - ✓ GÜNCELLENDİ: Oda ID gösterimi eklendi */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
           <div className="p-3 bg-purple-100 rounded-xl">
@@ -319,12 +363,17 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Yönetici Kontrol Paneli</h1>
             <p className="text-gray-600">Kullanıcı yetkilerini ve oda erişimlerini yönetin</p>
+            {/* ✓ EKLENDİ: Oda ID bilgisi */}
+            <div className="mt-2 text-sm text-gray-500">
+              Oda ID: <code className="bg-gray-100 px-2 py-1 rounded">{roomId}</code> | 
+              Kullanıcı: <code className="bg-gray-100 px-2 py-1 rounded">{kullanicilar.length} kişi</code>
+            </div>
           </div>
         </div>
         
         <div className="flex flex-wrap gap-4">
           <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-            📍 {roomName}
+            📍 {roomName} (ID: {roomId})
           </div>
           <div className="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
             👥 {kullanicilar.length} Kullanıcı
@@ -679,6 +728,8 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Yetki Yönetimi</h2>
                   <p className="text-gray-600">{selectedUser.ad} {selectedUser.soyad} için yetkileri düzenleyin</p>
+                  {/* ✓ EKLENDİ: Hangi oda için yetki yönetildiği */}
+                  <p className="text-sm text-gray-500">Oda: {roomName} (ID: {roomId})</p>
                 </div>
                 <button
                   onClick={() => setShowYetkiModal(false)}
@@ -689,43 +740,45 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Oda Erişimleri */}
+                {/* Oda Erişimleri - ✓ GÜNCELLENDİ: Sadece bu oda için */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Oda Erişimleri</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {roomName} için Erişimler
+                  </h3>
                   <div className="space-y-3">
-                    {odalar.map((oda) => (
-                      <div key={oda.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <Building className="h-5 w-5 text-gray-500" />
-                            <div>
-                              <div className="font-medium">{oda.oda_adi}</div>
-                              <div className="text-sm text-gray-500">{oda.oda_kodu}</div>
-                            </div>
+                    {/* Sadece mevcut oda için yetkiler */}
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Building className="h-5 w-5 text-gray-500" />
+                          <div>
+                            <div className="font-medium">{roomName}</div>
+                            <div className="text-sm text-gray-500">Oda ID: {roomId}</div>
                           </div>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          {(['kartela_olusturabilir', 'kartela_silebilir', 'rapor_gorebilir', 'raf_duzenleyebilir'] as const).map((yetki) => (
-                            <button
-                              key={yetki}
-                              onClick={() => handleYetkiYonet(selectedUser, oda.id, yetki)}
-                              className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm hover:bg-gray-300"
-                            >
-                              {yetki.replace(/_/g, ' ')}
-                            </button>
-                          ))}
-                        </div>
                       </div>
-                    ))}
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['kartela_olusturabilir', 'kartela_silebilir', 'rapor_gorebilir', 'raf_duzenleyebilir'] as const).map((yetki) => (
+                          <button
+                            key={yetki}
+                            onClick={() => handleYetkiYonet(selectedUser, roomId, yetki)}
+                            className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm hover:bg-gray-300"
+                          >
+                            {yetki.replace(/_/g, ' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Oda Aç/Kapat */}
+                {/* Oda Aç/Kapat - ✓ GÜNCELLENDİ: Sadece bu oda */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Oda Durumları</h3>
                   <div className="space-y-3">
-                    {odalar.map((oda) => (
+                    {/* Sadece mevcut oda */}
+                    {odalar.filter(oda => oda.id === roomId).map((oda) => (
                       <div key={oda.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <DoorOpen className="h-5 w-5 text-gray-500" />
@@ -783,7 +836,7 @@ export default function YoneticiDashboard({ roomName, currentUserId }: YoneticiD
             className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 flex items-center gap-2"
           >
             <Key className="h-5 w-5" />
-            {selectedUser.ad} için Yetkileri Yönet
+            {selectedUser.ad} için Yetkileri Yönet ({roomName})
           </button>
         </div>
       )}
