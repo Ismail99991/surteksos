@@ -87,7 +87,7 @@ export default function YoneticiDashboard({
       
       if (error) throw error;
       
-      const kullaniciListesi = data?.map(item => item.kullanicilar) || [];
+      const kullaniciListesi = data?.map((item: any) => item.kullanicilar) || [];
       setKullanicilar(kullaniciListesi);
       console.log(`✅ Oda ${odaId} için ${kullaniciListesi.length} kullanıcı bulundu`);
       
