@@ -1,11 +1,12 @@
 // lib/supabase/client.ts - SON HALİ:
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
+// Ana instance
+const supabaseInstance = createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -13,5 +14,11 @@ const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   }
 })
 
-export default supabase  // ← SADECE default export
-export { supabase }      // ← NAMED export da ekle
+// 1. createClient fonksiyonu (diğer component'ler için)
+export const createClient = () => supabaseInstance
+
+// 2. Named export
+export const supabase = supabaseInstance
+
+// 3. Default export
+export default supabaseInstance
