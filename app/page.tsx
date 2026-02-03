@@ -187,7 +187,7 @@ export default function HomePage() {
               <KartelaOdaDashboard roomName={currentRoom.name} />
             ) : currentRoom.name === 'Yönetici Odası' ? (
               <YoneticiDashboard
-                roomId={currentRoom.id}  // ✓ DÜZELTİLDİ: roomId eklendi
+                  roomId={Number(currentRoom?.id) || 1}  // ✓ DÜZELTİLDİ: roomId eklendi
                 roomName={currentRoom.name}
               />
             ) : (
