@@ -7,10 +7,9 @@ import {
   Settings, Users, DoorOpen, KeyRound, Archive,
   QrCode, Download, Copy
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 import QRCode from 'qrcode';
-
 
 type KullaniciType = Database['public']['Tables']['kullanicilar']['Row'];
 type OdaType = Database['public']['Tables']['odalar']['Row'];
@@ -49,7 +48,6 @@ export default function YoneticiDashboard({
     aktif: true
   });
 
-  const supabase = createClient() as any;
 
   // Verileri yükle - roomId kontrolü eklendi
   useEffect(() => {
@@ -67,21 +65,22 @@ export default function YoneticiDashboard({
   }, [roomId]); // roomId değişince yenile
 
   // ✓ DÜZELTİLDİ: Sadece bu odaya yetkisi olan kullanıcıları çek
-  const fetchKullanicilar = async () => {
+ const fetchKullanicilar = async () => {
     try {
       console.log(`🔍 Oda ${roomId} için kullanıcılar çekiliyor...`);
       
       // 1. Tüm kullanıcıları çek (debug için)
-      const { data: allUsers, error: allError } = await supabase
-        .from('kullanicilar')
-        .select('*')
-        .order('id');
+       const { data: yetkiliKullanicilar, error: yetkiError } = await supabase
+        .from('kullanici_yetkileri')
+        .select(`
+          kullanici_id,
+          kullanicilar:kullanici_id (*)
+        `)
+        .eq('oda_id', roomId);
       
-      if (allError) {
-        console.error('Tüm kullanıcılar yüklenemedi:', allError);
-        setDebugInfo(`HATA: ${allError.message}`);
-        return;
-      }
+      if (yetkiError) {
+        console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
+        setDebugInfo(`HATA: ${yetkiError.message}`);
       
       console.log('📋 Tüm kullanıcılar:', allUsers?.length || 0);
       

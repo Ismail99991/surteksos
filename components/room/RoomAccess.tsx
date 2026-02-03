@@ -126,6 +126,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
       await supabase
         .from('hareket_loglari')
         .insert({
+              kartela_no: 'ODA_GIRIS',
           hareket_tipi: 'ODA_GIRIS',
           kullanici_id: scannedUser.id,
           kullanici_kodu: scannedUser.kullanici_kodu,
