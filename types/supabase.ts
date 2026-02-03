@@ -328,7 +328,7 @@ export interface Database {
           id?: number
           kartela_id?: number | null
           kartela_no: string
-          hareket_tipi: 'OLUSTURMA' | 'HUCRE_YERLESTIRME' | 'GOZ_EKLEME' | 'DOLDU_ARSIV' | 'RENK_KAYMASI' | 'RAF_DUZENLEME' | 'SILINDI' | 'DURUM_DEGISIMI'
+          hareket_tipi: 'OLUSTURMA' | 'HUCRE_YERLESTIRME' | 'GOZ_EKLEME' | 'DOLDU_ARSIV' | 'RENK_KAYMASI' | 'RAF_DUZENLEME' | 'SILINDI' | 'DURUM_DEGISIMI' | 'ODA_GIRIS' | 'ODA_CIKIS'  | 'KULLANICI_ISLEM'
           eski_hucre_kodu?: string | null
           yeni_hucre_kodu?: string | null
           eski_goz_sayisi?: number | null
