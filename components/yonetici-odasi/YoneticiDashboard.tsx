@@ -66,55 +66,48 @@ export default function YoneticiDashboard({
 
   // ✓ DÜZELTİLDİ: Sadece bu odaya yetkisi olan kullanıcıları çek
  const fetchKullanicilar = async () => {
-    try {
-      console.log(`🔍 Oda ${roomId} için kullanıcılar çekiliyor...`);
-      
-      // 1. Tüm kullanıcıları çek (debug için)
-       const { data: yetkiliKullanicilar, error: yetkiError } = await supabase
-        .from('kullanici_yetkileri')
-        .select(`
-          kullanici_id,
-          kullanicilar:kullanici_id (*)
-        `)
-        .eq('oda_id', roomId);
-      
-      if (yetkiError) {
-        console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
-        setDebugInfo(`HATA: ${yetkiError.message}`);
-      
-      console.log('📋 Tüm kullanıcılar:', allUsers?.length || 0);
-      
-      // 2. Bu odaya yetkisi olanları çek
-      const { data: yetkiliKullanicilar, error: yetkiError } = await supabase
-        .from('kullanici_yetkileri')
-        .select(`
-          kullanici_id,
-          kullanicilar (*)
-        `)
-        .eq('oda_id', roomId);
-      
-      if (yetkiError) {
-        console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
-        setKullanicilar(allUsers || []);
-        setDebugInfo(`Tüm kullanıcılar: ${allUsers?.length || 0} | Yetki tablosu yok`);
-        return;
-      }
-      
-      const filteredUsers = yetkiliKullanicilar?.map((item: { kullanici_id: number; kullanicilar: KullaniciType }) => 
-  item.kullanicilar
-) || [];
-      console.log(`✅ Oda ${roomId} için ${filteredUsers.length} yetkili kullanıcı bulundu`);
-      console.log('👥 Yetkili kullanıcılar:', filteredUsers);
-      
-      setKullanicilar(filteredUsers);
-      setDebugInfo(`Yetkili kullanıcılar: ${filteredUsers.length} | Oda ID: ${roomId}`);
-      
-    } catch (error) {
-      console.error('❌ Kullanıcılar yüklenemedi:', error);
-      setKullanicilar([]);
-      setDebugInfo(`HATA: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+  try {
+    console.log(`🔍 Oda ${roomId} için kullanıcılar çekiliyor...`);
+    
+    // 1. ÖNCE: Tüm kullanıcıları çek (DEBUG için - sonra kaldırabilirsiniz)
+    const { data: allUsers, error: allError } = await supabase
+      .from('kullanicilar')
+      .select('*')
+      .order('ad');
+    
+    console.log('📋 Tüm kullanıcılar:', allUsers?.length || 0);
+    
+    // 2. Bu odaya yetkisi olanları çek
+    const { data: yetkiData, error: yetkiError } = await supabase
+      .from('kullanici_yetkileri')
+      .select(`
+        kullanici_id,
+        kullanicilar:kullanici_id (*)
+      `)
+      .eq('oda_id', roomId);
+    
+    if (yetkiError) {
+      console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
+      setDebugInfo(`HATA: ${yetkiError.message}`);
+      setKullanicilar(allUsers || []);
+      return;
     }
-  };
+    
+    // 3. Kullanıcıları çıkar
+    const filteredUsers = yetkiData?.map((item: any) => item.kullanicilar) || [];
+    
+    console.log(`✅ Oda ${roomId} için ${filteredUsers.length} yetkili kullanıcı bulundu`);
+    console.log('👥 Yetkili kullanıcılar:', filteredUsers);
+    
+    setKullanicilar(filteredUsers);
+    setDebugInfo(`Yetkili kullanıcılar: ${filteredUsers.length} | Oda ID: ${roomId}`);
+    
+  } catch (error) {
+    console.error('❌ Kullanıcılar yüklenemedi:', error);
+    setKullanicilar([]);
+    setDebugInfo(`HATA: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+  }
+};
 
   const fetchOdalar = async () => {
     try {
