@@ -9,13 +9,20 @@ export default function YoneticiDashboard({ roomName, roomId }: { roomName: stri
   const [loading, setLoading] = useState(false);
   const [debug, setDebug] = useState('');
 
-  // 1. KULLANICILARI YÜKLE
+  // ⚡ DEBUG: Supabase'i global yap
+  if (typeof window !== 'undefined') {
+    (window as any).mySupabase = supabase;
+  }
+
   useEffect(() => {
-    console.log('🔧 Yükleniyor - Oda ID:', roomId);
-    setDebug(`Oda: ${roomName} (ID: ${roomId})`);
+    console.log('🎯 YoneticiDashboard MOUNT - Oda ID:', roomId, 'Oda Adı:', roomName);
+    console.log('🔧 DEBUG: window.mySupabase var mı?', (window as any).mySupabase);
+    
+    setDebug(`Oda: ${roomName} (ID: ${roomId || 'YOK!'})`);
     
     if (!roomId) {
-      setDebug('❌ HATA: Oda ID yok!');
+      console.error('❌ HATA: Oda ID yok!');
+      setDebug('❌ HATA: Oda ID yok! Ana sayfadan odaya giriş yapın.');
       return;
     }
     
@@ -24,36 +31,43 @@ export default function YoneticiDashboard({ roomName, roomId }: { roomName: stri
 
   const loadKullanicilar = async () => {
     setLoading(true);
+    console.log('📡 loadKullanicilar ÇALIŞTI, Oda ID:', roomId);
+    
     try {
-      console.log('📡 Kullanıcılar yükleniyor...');
+      // 1. ÖNCE BASİT BİR TEST
+      const { data: testData, error: testError } = await supabase
+        .from('kullanicilar')
+        .select('id, ad, soyad')
+        .limit(3);
       
-      // 1. ÖNCE: Tüm kullanıcıları göster (TEST için)
-      const { data: tumKullanicilar, error: tumError } = await supabase
+      console.log('🧪 TEST sorgu sonucu:', testError ? 'HATA: ' + testError.message : 'BAŞARILI', testData);
+      
+      if (testError) {
+        throw testError;
+      }
+      
+      // 2. TÜM KULLANICILARI GETİR
+      const { data: tumKullanicilar, error } = await supabase
         .from('kullanicilar')
         .select('*')
         .order('ad');
       
-      if (tumError) throw tumError;
+      console.log('📊 Tüm kullanıcılar sorgu:', error ? 'HATA: ' + error.message : 'BAŞARILI');
       
-      console.log('✅ Tüm kullanıcılar:', tumKullanicilar?.length);
+      if (error) throw error;
+      
+      console.log('✅ Tüm kullanıcılar:', tumKullanicilar?.length || 0, 'adet');
+      console.log('👥 İlk 3 kullanıcı:', tumKullanicilar?.slice(0, 3));
+      
       setKullanicilar(tumKullanicilar || []);
-      setDebug(`${tumKullanicilar?.length || 0} kullanıcı bulundu`);
-      
-      // 2. SONRA: Bu odaya yetkili olanları bul
-      const { data: yetkiler, error: yetkiError } = await supabase
-        .from('kullanici_yetkileri')
-        .select('kullanici_id')
-        .eq('oda_id', roomId);
-      
-      if (yetkiError) throw yetkiError;
-      
-      console.log('📊 Bu odada yetkili kullanıcı sayısı:', yetkiler?.length || 0);
+      setDebug(`${tumKullanicilar?.length || 0} kullanıcı bulundu (Oda: ${roomName})`);
       
     } catch (error: any) {
-      console.error('❌ HATA:', error);
-      setDebug(`HATA: ${error.message}`);
+      console.error('❌ loadKullanicilar HATASI:', error);
+      setDebug(`❌ HATA: ${error.message}`);
     } finally {
       setLoading(false);
+      console.log('🏁 loadKullanicilar BİTTİ');
     }
   };
 
@@ -74,12 +88,19 @@ export default function YoneticiDashboard({ roomName, roomId }: { roomName: stri
           </div>
         </div>
         
-        {/* DEBUG */}
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+        {/* DEBUG PANEL */}
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="font-mono text-sm">
-            🐛 <strong>Debug:</strong> {debug}
+            <div className="font-bold mb-1">🐛 DEBUG PANEL</div>
+            <div className="text-gray-700">{debug}</div>
+            {loading && <div className="mt-2 text-blue-600">⏳ Yükleniyor...</div>}
           </div>
-          {loading && <div className="mt-2 text-sm">⏳ Yükleniyor...</div>}
+          <button 
+            onClick={loadKullanicilar}
+            className="mt-3 px-3 py-1 bg-gray-800 text-white text-xs rounded hover:bg-gray-900"
+          >
+            🔄 Yenile
+          </button>
         </div>
       </div>
 
@@ -118,7 +139,7 @@ export default function YoneticiDashboard({ roomName, roomId }: { roomName: stri
           <div className="p-8 text-center">
             <User className="h-12 w-12 mx-auto text-gray-300 mb-3" />
             <h3 className="text-lg font-semibold text-gray-700">Kullanıcı bulunamadı</h3>
-            <p className="text-gray-500 mt-1">Henüz kullanıcı eklenmemiş veya yüklenemedi.</p>
+            <p className="text-gray-500 mt-1">Henüz kullanıcı eklenmemiş.</p>
             <button 
               onClick={loadKullanicilar}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -145,18 +166,6 @@ export default function YoneticiDashboard({ roomName, roomId }: { roomName: stri
             ))}
           </div>
         )}
-      </div>
-
-      {/* BOTTOM DEBUG */}
-      <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-        <div className="text-sm font-mono">
-          <div>🔧 <strong>Console'da kontrol edin:</strong></div>
-          <div className="mt-2 text-gray-700">
-            1. "Yükleniyor - Oda ID: X" görüyor musunuz?<br/>
-            2. "Kullanıcılar yükleniyor..." görüyor musunuz?<br/>
-            3. "Tüm kullanıcılar: X" görüyor musunuz?
-          </div>
-        </div>
       </div>
     </div>
   );
