@@ -88,19 +88,21 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
 
     try {
       // 1. Odayı bul
-      const { data: room, error: roomError } = await supabase
+      const { data: roomData, error: roomError } = await supabase
         .from('odalar')
         .select('*')
         .eq('qr_kodu', qrCode)
         .eq('aktif', true)
         .single()
 
-      if (roomError || !room) {
+      if (roomError || !roomData) {
         setStatus('denied')
         setStatusMessage('❌ Geçersiz oda QR kodu')
         onAccessDenied('Geçersiz oda QR kodu')
         return
       }
+      
+      const room: RoomType = roomData
 
       // 2. Kullanıcının bu odaya yetkisi var mı?
       const { data: permission, error: permError } = await supabase
@@ -127,12 +129,12 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
         .from('hareket_loglari')
         .insert({
               kartela_no: 'ODA_GIRIS',
-          hareket_tipi: 'ODA_GIRIS',
+          hareket_tipi: 'ODA_GIRIS' as any,
           kullanici_id: scannedUser.id,
           kullanici_kodu: scannedUser.kullanici_kodu,
           aciklama: `${scannedUser.ad} ${room.oda_adi} odasına giriş yaptı`,
           tarih: new Date().toISOString()
-        })
+        } as any)
 
       // 5. Callback çağır
       setTimeout(() => {
