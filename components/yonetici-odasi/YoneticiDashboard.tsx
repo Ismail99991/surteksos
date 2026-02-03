@@ -50,64 +50,75 @@ export default function YoneticiDashboard({
 
 
   // Verileri yükle - roomId kontrolü eklendi
-  useEffect(() => {
-    if (!roomId) {
-      console.error('❌ HATA: roomId tanımsız!');
-      setDebugInfo('HATA: roomId tanımsız. Ana sayfadan odaya giriş yapın.');
-      return;
-    }
-    
-    console.log(`🚀 Dashboard başlatılıyor: Oda ID=${roomId}, Ad=${roomName}`);
-    setDebugInfo(`Oda ID: ${roomId} | Yükleniyor...`);
-    
-    fetchKullanicilar();
-    fetchOdalar();
-  }, [roomId]); // roomId değişince yenile
-
-  // ✓ DÜZELTİLDİ: Sadece bu odaya yetkisi olan kullanıcıları çek
- const fetchKullanicilar = async () => {
-  try {
-    console.log(`🔍 Oda ${roomId} için kullanıcılar çekiliyor...`);
-    
-    // 1. ÖNCE: Tüm kullanıcıları çek (DEBUG için - sonra kaldırabilirsiniz)
-    const { data: allUsers, error: allError } = await supabase
-      .from('kullanicilar')
-      .select('*')
-      .order('ad');
-    
-    console.log('📋 Tüm kullanıcılar:', allUsers?.length || 0);
-    
-    // 2. Bu odaya yetkisi olanları çek
-    const { data: yetkiData, error: yetkiError } = await supabase
-      .from('kullanici_yetkileri')
-      .select(`
-        kullanici_id,
-        kullanicilar:kullanici_id (*)
-      `)
-      .eq('oda_id', roomId);
-    
-    if (yetkiError) {
-      console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
-      setDebugInfo(`HATA: ${yetkiError.message}`);
-      setKullanicilar(allUsers || []);
-      return;
-    }
-    
-    // 3. Kullanıcıları çıkar
-    const filteredUsers = yetkiData?.map((item: any) => item.kullanicilar) || [];
-    
-    console.log(`✅ Oda ${roomId} için ${filteredUsers.length} yetkili kullanıcı bulundu`);
-    console.log('👥 Yetkili kullanıcılar:', filteredUsers);
-    
-    setKullanicilar(filteredUsers);
-    setDebugInfo(`Yetkili kullanıcılar: ${filteredUsers.length} | Oda ID: ${roomId}`);
-    
-  } catch (error) {
-    console.error('❌ Kullanıcılar yüklenemedi:', error);
-    setKullanicilar([]);
-    setDebugInfo(`HATA: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+ useEffect(() => {
+  // 1. roomId kontrolü
+  if (!roomId) {
+    console.error('❌ HATA: roomId tanımsız!');
+    setDebugInfo('HATA: roomId tanımsız. Ana sayfadan odaya giriş yapın.');
+    return;
   }
-};
+  
+  console.log(`🚀 Dashboard başlatılıyor: Oda ID=${roomId}, Ad=${roomName}`);
+  setDebugInfo(`Oda ID: ${roomId} | Yükleniyor...`);
+  
+  // 2. Kullanıcıları çek (YENİ - useEffect İÇİNDE)
+  const fetchKullanicilar = async () => {
+    try {
+      console.log(`🔍 Oda ${roomId} için kullanıcılar çekiliyor...`);
+      
+      // Bu odaya yetkisi olanları çek
+      const { data: yetkiData, error: yetkiError } = await supabase
+        .from('kullanici_yetkileri')
+        .select(`
+          kullanici_id,
+          kullanicilar:kullanici_id (*)
+        `)
+        .eq('oda_id', roomId);
+      
+      if (yetkiError) {
+        console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
+        setDebugInfo(`HATA: ${yetkiError.message}`);
+        setKullanicilar([]);
+        return;
+      }
+      
+      const filteredUsers = yetkiData?.map((item: any) => item.kullanicilar) || [];
+      
+      console.log(`✅ Oda ${roomId} için ${filteredUsers.length} yetkili kullanıcı bulundu`);
+      console.log('👥 Yetkili kullanıcılar:', filteredUsers);
+      
+      setKullanicilar(filteredUsers);
+      setDebugInfo(`Yetkili kullanıcılar: ${filteredUsers.length} | Oda ID: ${roomId}`);
+      
+    } catch (error) {
+      console.error('❌ Kullanıcılar yüklenemedi:', error);
+      setKullanicilar([]);
+      setDebugInfo(`HATA: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+    }
+  };
+  
+  // 3. Odaları çek (mevcut fonksiyon)
+  const fetchOdalar = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('odalar')
+        .select('*')
+        .eq('aktif', true)
+        .order('oda_kodu');
+      
+      if (error) throw error;
+      setOdalar(data || []);
+    } catch (error) {
+      console.error('Odalar yüklenemedi:', error);
+      setOdalar([]);
+    }
+  };
+  
+  // 4. Her ikisini de çalıştır
+  fetchKullanicilar();
+  fetchOdalar();
+  
+}, [roomId, roomName]); // ← roomId ve roomName dependencyleri eklendi
 
   const fetchOdalar = async () => {
     try {
