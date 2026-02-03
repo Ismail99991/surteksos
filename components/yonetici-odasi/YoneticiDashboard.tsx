@@ -18,13 +18,13 @@ type YetkiType = Database['public']['Tables']['kullanici_yetkileri']['Row'];
 
 interface YoneticiDashboardProps {
   roomName: string;
-  roomId: number; // ✓ EKLENDİ: Oda ID'si zorunlu
+  roomId: number; // ✓ Zorunlu
   currentUserId?: number;
 }
 
 export default function YoneticiDashboard({ 
   roomName, 
-  roomId,  // ✓ EKLENDİ
+  roomId,
   currentUserId 
 }: YoneticiDashboardProps) {
   const [kullanicilar, setKullanicilar] = useState<KullaniciType[]>([]);
@@ -36,6 +36,7 @@ export default function YoneticiDashboard({
   const [editingUser, setEditingUser] = useState<KullaniciType | null>(null);
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
   const [newUser, setNewUser] = useState({
     kullanici_kodu: '',
@@ -50,119 +51,71 @@ export default function YoneticiDashboard({
 
   const supabase = createClient() as any;
 
-  // Verileri yükle - roomId dependency olarak eklendi
+  // Verileri yükle - roomId kontrolü eklendi
   useEffect(() => {
+    if (!roomId) {
+      console.error('❌ HATA: roomId tanımsız!');
+      setDebugInfo('HATA: roomId tanımsız. Ana sayfadan odaya giriş yapın.');
+      return;
+    }
+    
+    console.log(`🚀 Dashboard başlatılıyor: Oda ID=${roomId}, Ad=${roomName}`);
+    setDebugInfo(`Oda ID: ${roomId} | Yükleniyor...`);
+    
     fetchKullanicilar();
     fetchOdalar();
-   // fetchOdaDetay(roomId); // ✓ EKLENDİ: Oda detayını çek
-  }, [roomId]); // ✓ EKLENDİ: roomId değişince yenile
+  }, [roomId]); // roomId değişince yenile
 
-  // ✓ EKLENDİ: Odaya özel detay çekme
-  const fetchOdaDetay = async (id: number) => {
+  // ✓ DÜZELTİLDİ: Sadece bu odaya yetkisi olan kullanıcıları çek
+  const fetchKullanicilar = async () => {
     try {
-      console.log(`📂 Oda ID ${id} için detay çekiliyor...`);
-      const { data, error } = await supabase
-        .from('odalar')
+      console.log(`🔍 Oda ${roomId} için kullanıcılar çekiliyor...`);
+      
+      // 1. Tüm kullanıcıları çek (debug için)
+      const { data: allUsers, error: allError } = await supabase
+        .from('kullanicilar')
         .select('*')
-        .eq('id', id)
-        .single();
+        .order('id');
       
-      if (error) throw error;
-      console.log('✅ Oda detayı:', data);
+      if (allError) {
+        console.error('Tüm kullanıcılar yüklenemedi:', allError);
+        setDebugInfo(`HATA: ${allError.message}`);
+        return;
+      }
       
-    } catch (error) {
-      console.error('❌ Oda detayı yüklenemedi:', error);
-    }
-  };
-
-  // ✓ EKLENDİ: Sadece bu odaya yetkisi olan kullanıcıları çek
-  const fetchOdayaOzelKullanicilar = async (odaId: number) => {
-    try {
-      const { data, error } = await supabase
+      console.log('📋 Tüm kullanıcılar:', allUsers?.length || 0);
+      
+      // 2. Bu odaya yetkisi olanları çek
+      const { data: yetkiliKullanicilar, error: yetkiError } = await supabase
         .from('kullanici_yetkileri')
         .select(`
           kullanici_id,
           kullanicilar (*)
         `)
-        .eq('oda_id', odaId);
+        .eq('oda_id', roomId);
       
-      if (error) throw error;
+      if (yetkiError) {
+        console.error('Yetkili kullanıcılar yüklenemedi:', yetkiError);
+        setKullanicilar(allUsers || []);
+        setDebugInfo(`Tüm kullanıcılar: ${allUsers?.length || 0} | Yetki tablosu yok`);
+        return;
+      }
       
-      const kullaniciListesi = data?.map((item: any) => item.kullanicilar) || [];
-      setKullanicilar(kullaniciListesi);
-      console.log(`✅ Oda ${odaId} için ${kullaniciListesi.length} kullanıcı bulundu`);
+      const filteredUsers = yetkiliKullanicilar?.map((item: { kullanici_id: number; kullanicilar: KullaniciType }) => 
+  item.kullanicilar
+) || [];
+      console.log(`✅ Oda ${roomId} için ${filteredUsers.length} yetkili kullanıcı bulundu`);
+      console.log('👥 Yetkili kullanıcılar:', filteredUsers);
+      
+      setKullanicilar(filteredUsers);
+      setDebugInfo(`Yetkili kullanıcılar: ${filteredUsers.length} | Oda ID: ${roomId}`);
       
     } catch (error) {
-      console.error('❌ Odaya özel kullanıcılar yüklenemedi:', error);
+      console.error('❌ Kullanıcılar yüklenemedi:', error);
+      setKullanicilar([]);
+      setDebugInfo(`HATA: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
     }
   };
-
-  // fetchKullanicilar fonksiyonunu TAMAMEN SİL, yerine bunu koy:
-const fetchKullanicilar = async () => {
-  console.log('🎯 TEST VERİSİ GÖSTERİLİYOR');
-  
-  // HEMEN test verisi göster
-  const testKullanicilar = [
-    {
-      id: 1,
-      kullanici_kodu: 'ADMIN-001',
-      ad: 'Ahmet',
-      soyad: 'Yılmaz',
-      unvan: 'Sistem Yöneticisi',
-      departman: 'IT',
-      aktif: true,
-      qr_kodu: 'QR-001',
-      sifre_hash: 'hash',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      kullanici_kodu: 'USER-002',
-      ad: 'Mehmet',
-      soyad: 'Kaya',
-      unvan: 'Operatör',
-      departman: 'Üretim',
-      aktif: true,
-      qr_kodu: 'QR-002',
-      sifre_hash: 'hash',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 3,
-      kullanici_kodu: 'USER-003',
-      ad: 'Ayşe',
-      soyad: 'Demir',
-      unvan: 'Kalite Kontrol',
-      departman: 'Kalite',
-      aktif: false,
-      qr_kodu: 'QR-003',
-      sifre_hash: 'hash',
-      created_at: new Date().toISOString()
-    }
-  ];
-  
-  setKullanicilar(testKullanicilar as any);
-  console.log('✅ 3 test kullanıcı gösterildi');
-  
-  // ARKA PLANDA gerçek veriyi dene
-  setTimeout(async () => {
-    try {
-      console.log('🔍 Gerçek veri deneniyor...');
-      const { data, error } = await supabase
-        .from('kullanicilar')
-        .select('*')
-        .limit(5);
-      
-      if (!error && data && data.length > 0) {
-        console.log('🎉 Gerçek veri geldi!');
-        setKullanicilar(data);
-      }
-    } catch (err) {
-      console.log('⚠️ Gerçek veri alınamadı, test verisi kullanılıyor');
-    }
-  }, 1000);
-};
-    
 
   const fetchOdalar = async () => {
     try {
@@ -176,6 +129,7 @@ const fetchKullanicilar = async () => {
       setOdalar(data || []);
     } catch (error) {
       console.error('Odalar yüklenemedi:', error);
+      setOdalar([]);
     }
   };
 
@@ -321,7 +275,7 @@ const fetchKullanicilar = async () => {
     setEditingUser(null);
   };
 
-  // Kullanıcı yetkilerini yönet - ✓ GÜNCELLENDİ: Bu oda için yetki kontrolü
+  // Kullanıcı yetkilerini yönet
   const handleYetkiYonet = async (user: KullaniciType, odaId: number, yetki: keyof YetkiType) => {
     try {
       // Önce bu kullanıcının bu odada yetkisi var mı kontrol et
@@ -395,12 +349,14 @@ const fetchKullanicilar = async () => {
     document.body.removeChild(link);
   };
 
-  // ✓ EKLENDİ: Debug için oda ID gösterimi
+  // Debug için
   console.log(`🚀 Dashboard çalışıyor: Oda ID=${roomId}, Oda Adı=${roomName}`);
+  console.log(`👥 Kullanıcı sayısı: ${kullanicilar.length}`);
+  console.log(`🚪 Oda sayısı: ${odalar.length}`);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      {/* Başlık - ✓ GÜNCELLENDİ: Oda ID gösterimi eklendi */}
+      {/* Başlık - debug bilgisi eklendi */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
           <div className="p-3 bg-purple-100 rounded-xl">
@@ -409,17 +365,41 @@ const fetchKullanicilar = async () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Yönetici Kontrol Paneli</h1>
             <p className="text-gray-600">Kullanıcı yetkilerini ve oda erişimlerini yönetin</p>
-            {/* ✓ EKLENDİ: Oda ID bilgisi */}
-            <div className="mt-2 text-sm text-gray-500">
-              Oda ID: <code className="bg-gray-100 px-2 py-1 rounded">{roomId}</code> | 
-              Kullanıcı: <code className="bg-gray-100 px-2 py-1 rounded">{kullanicilar.length} kişi</code>
+            
+            {/* ✓ DÜZELTİLDİ: Debug bilgileri */}
+            <div className="mt-2 text-sm space-y-1">
+              <div className="flex gap-4">
+                <div>
+                  📍 Oda: <code className="bg-gray-100 px-2 py-1 rounded">{roomName}</code>
+                </div>
+                <div>
+                  🔑 Oda ID: <code className="bg-gray-100 px-2 py-1 rounded">{roomId || 'TANIMSIZ!'}</code>
+                </div>
+                <div>
+                  👥 Yetkili: <code className="bg-gray-100 px-2 py-1 rounded">{kullanicilar.length} kişi</code>
+                </div>
+              </div>
+              
+              {/* Debug bilgisi */}
+              {debugInfo && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-blue-800">
+                  ℹ️ {debugInfo}
+                </div>
+              )}
+              
+              {/* Eğer roomId yoksa büyük uyarı */}
+              {!roomId && (
+                <div className="mt-2 p-3 bg-red-100 text-red-800 rounded border border-red-300">
+                  ⚠️ HATA: roomId tanımsız! Lütfen ana sayfadan odaya giriş yapın.
+                </div>
+              )}
             </div>
           </div>
         </div>
         
         <div className="flex flex-wrap gap-4">
           <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-            📍 {roomName} (ID: {roomId})
+            📍 {roomName} (ID: {roomId || 'YOK'})
           </div>
           <div className="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
             👥 {kullanicilar.length} Kullanıcı
@@ -429,6 +409,33 @@ const fetchKullanicilar = async () => {
           </div>
         </div>
       </div>
+
+      {/* Eğer kullanıcı yoksa bilgi göster */}
+      {kullanicilar.length === 0 && roomId && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <Users className="h-6 w-6 text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-yellow-800">Henüz kullanıcı bulunamadı</h3>
+              <p className="text-yellow-700 text-sm">
+                Bu odada ({roomName}) henüz yetkilendirilmiş kullanıcı yok. 
+                Yeni kullanıcı ekleyin veya mevcut kullanıcılara bu oda için yetki verin.
+              </p>
+              <button
+                onClick={() => {
+                  resetNewUserForm();
+                  setShowUserModal(true);
+                }}
+                className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+              >
+                İlk Kullanıcıyı Ekle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QR Kod Üretme Bölümü */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -441,24 +448,31 @@ const fetchKullanicilar = async () => {
             <h3 className="text-lg font-semibold">Kullanıcı QR Kodu Üret</h3>
           </div>
           
-          <div className="space-y-3">
-            {kullanicilar.slice(0, 3).map(user => (
-              <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium">{user.ad} {user.soyad}</div>
-                  <div className="text-sm text-gray-500">{user.kullanici_kodu}</div>
+          {kullanicilar.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <User className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>Henüz kullanıcı yok</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {kullanicilar.slice(0, 3).map(user => (
+                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="font-medium">{user.ad} {user.soyad}</div>
+                    <div className="text-sm text-gray-500">{user.kullanici_kodu}</div>
+                  </div>
+                  <button
+                    onClick={() => handleGenerateUserQR(user)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    QR Üret
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleGenerateUserQR(user)}
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <QrCode className="h-4 w-4" />
-                  QR Üret
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Oda QR Üret */}
@@ -470,24 +484,31 @@ const fetchKullanicilar = async () => {
             <h3 className="text-lg font-semibold">Oda QR Kodu Üret</h3>
           </div>
           
-          <div className="space-y-3">
-            {odalar.slice(0, 3).map(oda => (
-              <div key={oda.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium">{oda.oda_adi}</div>
-                  <div className="text-sm text-gray-500">{oda.oda_kodu}</div>
+          {odalar.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Building className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>Henüz oda yok</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {odalar.slice(0, 3).map(oda => (
+                <div key={oda.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="font-medium">{oda.oda_adi}</div>
+                    <div className="text-sm text-gray-500">{oda.oda_kodu}</div>
+                  </div>
+                  <button
+                    onClick={() => handleGenerateRoomQR(oda)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    QR Üret
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleGenerateRoomQR(oda)}
-                  disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <QrCode className="h-4 w-4" />
-                  QR Üret
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -557,98 +578,119 @@ const fetchKullanicilar = async () => {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold text-gray-900">Kullanıcı Listesi</h2>
-          <p className="text-gray-600 text-sm">Sistemdeki tüm kullanıcılar</p>
+          <p className="text-gray-600 text-sm">
+            {roomName} odasına yetkili kullanıcılar ({kullanicilar.length} kişi)
+          </p>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kullanıcı</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kodu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">QR Kodu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr 
-                  key={user.id} 
-                  className={`hover:bg-gray-50 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50' : ''}`}
-                  onClick={() => handleUserClick(user)}
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${user.aktif ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        <User className={`h-5 w-5 ${user.aktif ? 'text-blue-600' : 'text-gray-600'}`} />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">{user.ad} {user.soyad}</div>
-                        <div className="text-sm text-gray-500">{user.unvan || 'Unvan yok'}</div>
-                        <div className="text-xs text-gray-400">{user.departman || 'Departman yok'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <code className="text-sm bg-gray-100 px-2 py-1 rounded">{user.kullanici_kodu}</code>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      {user.qr_kodu ? (
-                        <span className="text-green-600 font-mono">{user.qr_kodu.substring(0, 15)}...</span>
-                      ) : (
-                        <span className="text-red-600">QR Yok</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${user.aktif ? 'bg-green-500' : 'bg-red-500'}`} />
-                      <span className={`text-sm font-medium ${user.aktif ? 'text-green-700' : 'text-red-700'}`}>
-                        {user.aktif ? 'Aktif' : 'Pasif'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditUserModal(user);
-                        }}
-                        className="p-2 text-gray-600 hover:text-blue-600"
-                        title="Düzenle"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGenerateUserQR(user);
-                        }}
-                        className="p-2 text-gray-600 hover:text-green-600"
-                        title="QR Üret"
-                      >
-                        <QrCode className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleUserStatus(user);
-                        }}
-                        className="p-2 text-gray-600 hover:text-red-600"
-                        title={user.aktif ? 'Pasif Yap' : 'Aktif Yap'}
-                      >
-                        {user.aktif ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </td>
+        {kullanicilar.length === 0 ? (
+          <div className="p-12 text-center">
+            <Users className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Henüz kullanıcı yok</h3>
+            <p className="text-gray-500 mb-6">
+              Bu odada henüz yetkilendirilmiş kullanıcı bulunmuyor.
+            </p>
+            <button
+              onClick={() => {
+                resetNewUserForm();
+                setShowUserModal(true);
+              }}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              İlk Kullanıcıyı Ekle
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kullanıcı</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kodu</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">QR Kodu</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr 
+                    key={user.id} 
+                    className={`hover:bg-gray-50 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50' : ''}`}
+                    onClick={() => handleUserClick(user)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${user.aktif ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                          <User className={`h-5 w-5 ${user.aktif ? 'text-blue-600' : 'text-gray-600'}`} />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">{user.ad} {user.soyad}</div>
+                          <div className="text-sm text-gray-500">{user.unvan || 'Unvan yok'}</div>
+                          <div className="text-xs text-gray-400">{user.departman || 'Departman yok'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <code className="text-sm bg-gray-100 px-2 py-1 rounded">{user.kullanici_kodu}</code>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        {user.qr_kodu ? (
+                          <span className="text-green-600 font-mono">{user.qr_kodu.substring(0, 15)}...</span>
+                        ) : (
+                          <span className="text-red-600">QR Yok</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${user.aktif ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className={`text-sm font-medium ${user.aktif ? 'text-green-700' : 'text-red-700'}`}>
+                          {user.aktif ? 'Aktif' : 'Pasif'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditUserModal(user);
+                          }}
+                          className="p-2 text-gray-600 hover:text-blue-600"
+                          title="Düzenle"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateUserQR(user);
+                          }}
+                          className="p-2 text-gray-600 hover:text-green-600"
+                          title="QR Üret"
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleUserStatus(user);
+                          }}
+                          className="p-2 text-gray-600 hover:text-red-600"
+                          title={user.aktif ? 'Pasif Yap' : 'Aktif Yap'}
+                        >
+                          {user.aktif ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Kullanıcı Detay Modal */}
@@ -774,7 +816,6 @@ const fetchKullanicilar = async () => {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Yetki Yönetimi</h2>
                   <p className="text-gray-600">{selectedUser.ad} {selectedUser.soyad} için yetkileri düzenleyin</p>
-                  {/* ✓ EKLENDİ: Hangi oda için yetki yönetildiği */}
                   <p className="text-sm text-gray-500">Oda: {roomName} (ID: {roomId})</p>
                 </div>
                 <button
@@ -786,7 +827,7 @@ const fetchKullanicilar = async () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Oda Erişimleri - ✓ GÜNCELLENDİ: Sadece bu oda için */}
+                {/* Oda Erişimleri */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     {roomName} için Erişimler
@@ -819,7 +860,7 @@ const fetchKullanicilar = async () => {
                   </div>
                 </div>
 
-                {/* Oda Aç/Kapat - ✓ GÜNCELLENDİ: Sadece bu oda */}
+                {/* Oda Aç/Kapat */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Oda Durumları</h3>
                   <div className="space-y-3">

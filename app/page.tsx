@@ -16,7 +16,6 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
   useEffect(() => {
-    // 3 saniye sonra preloader'ı kapat
     const timer = setTimeout(() => {
       setIsLoading(false)
     }, 3000)
@@ -52,7 +51,6 @@ export default function HomePage() {
     setCurrentRoom(null)
   }
 
-  // Preloader gösteriliyorsa
   if (isLoading) {
     return <AppPreloader onLoadingComplete={handleLoadingComplete} />
   }
@@ -189,8 +187,9 @@ export default function HomePage() {
               <KartelaOdaDashboard roomName={currentRoom.name} />
             ) : currentRoom.name === 'Yönetici Odası' ? (
               <YoneticiDashboard
-                roomId={currentRoom.id}  // ← BU EKLENMELİ!
-                roomName={currentRoom.name} />
+                roomId={currentRoom.id}  // ✓ DÜZELTİLDİ: roomId eklendi
+                roomName={currentRoom.name}
+              />
             ) : (
               <div className="space-y-8">
                 {/* Hoş Geldin */}
