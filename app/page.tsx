@@ -187,8 +187,7 @@ export default function HomePage() {
               <KartelaOdaDashboard roomName={currentRoom.name} />
             ) : currentRoom.name === 'Yönetici Odası' ? (
               <YoneticiDashboard
-                  roomId={Number(currentRoom?.id) || 1}  // ✓ DÜZELTİLDİ: roomId eklendi
-                roomName={currentRoom.name}
+                currentUserId={currentUser?.id || 1}
               />
             ) : (
               <div className="space-y-8">
