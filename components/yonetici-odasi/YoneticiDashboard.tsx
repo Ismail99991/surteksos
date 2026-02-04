@@ -1,172 +1,229 @@
-'use client';
+# Ana sayfayı güncelle (app/page.tsx)
+# Sadece Kartela Odası kısmını değiştirelim
+# Önce mevcut dosyayı yedekleyelim:
+cp app/page.tsx app/page.tsx.backup
 
-import { useState, useEffect } from 'react';
-import { User, Building, Search, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+# Şimdi güncelleyelim:
+cat > app/page.tsx << 'EOF'
+'use client'
 
-export default function YoneticiDashboard({ roomName, roomId }: { roomName: string; roomId: number }) {
-  const [kullanicilar, setKullanicilar] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [debug, setDebug] = useState('');
+import { useState } from 'react'
+import { Factory, LogOut, User, DoorOpen, Database } from 'lucide-react'
+import RoomAccess from '@/components/room/RoomAccess'
+import KartelaSearch from '@/components/kartela/KartelaSearch'
+import KartelaOdaDashboard from '@/components/kartela-odasi/KartelaOdaDashboard'
+import { api } from '@/lib/api'
 
-  // ⚡ DEBUG: Supabase'i global yap
-  if (typeof window !== 'undefined') {
-    (window as any).mySupabase = supabase;
+export default function HomePage() {
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentRoom, setCurrentRoom] = useState<any>(null)
+  const [accessLog, setAccessLog] = useState<string[]>([])
+
+  const handleAccessGranted = async (userData: any, roomData: any) => {
+    setCurrentUser(userData)
+    setCurrentRoom(roomData)
+    
+    const logEntry = `${new Date().toLocaleTimeString('tr-TR')} - ${userData.name}, ${roomData.name} odasına giriş yaptı`
+    setAccessLog(prev => [logEntry, ...prev.slice(0, 9)])
   }
 
-  useEffect(() => {
-    console.log('🎯 YoneticiDashboard MOUNT - Oda ID:', roomId, 'Oda Adı:', roomName);
-    console.log('🔧 DEBUG: window.mySupabase var mı?', (window as any).mySupabase);
-    
-    setDebug(`Oda: ${roomName} (ID: ${roomId || 'YOK!'})`);
-    
-    if (!roomId) {
-      console.error('❌ HATA: Oda ID yok!');
-      setDebug('❌ HATA: Oda ID yok! Ana sayfadan odaya giriş yapın.');
-      return;
-    }
-    
-    loadKullanicilar();
-  }, [roomId]);
+  const handleAccessDenied = (reason: string) => {
+    const logEntry = `${new Date().toLocaleTimeString('tr-TR')} - Yetkisiz giriş denemesi: ${reason}`
+    setAccessLog(prev => [logEntry, ...prev.slice(0, 9)])
+  }
 
-  const loadKullanicilar = async () => {
-    setLoading(true);
-    console.log('📡 loadKullanicilar ÇALIŞTI, Oda ID:', roomId);
-    
-    try {
-      // 1. ÖNCE BASİT BİR TEST
-      const { data: testData, error: testError } = await supabase
-        .from('kullanicilar')
-        .select('id, ad, soyad')
-        .limit(3);
+  const handleLogout = async () => {
+    if (currentUser && currentRoom) {
+      const logEntry = `${new Date().toLocaleTimeString('tr-TR')} - ${currentUser.name}, ${currentRoom.name} odasından çıkış yaptı`
+      setAccessLog(prev => [logEntry, ...prev.slice(0, 9)])
       
-      console.log('🧪 TEST sorgu sonucu:', testError ? 'HATA: ' + testError.message : 'BAŞARILI', testData);
-      
-      if (testError) {
-        throw testError;
-      }
-      
-      // 2. TÜM KULLANICILARI GETİR
-      const { data: tumKullanicilar, error } = await supabase
-        .from('kullanicilar')
-        .select('*')
-        .order('ad');
-      
-      console.log('📊 Tüm kullanıcılar sorgu:', error ? 'HATA: ' + error.message : 'BAŞARILI');
-      
-      if (error) throw error;
-      
-      console.log('✅ Tüm kullanıcılar:', tumKullanicilar?.length || 0, 'adet');
-      console.log('👥 İlk 3 kullanıcı:', tumKullanicilar?.slice(0, 3));
-      
-      setKullanicilar(tumKullanicilar || []);
-      setDebug(`${tumKullanicilar?.length || 0} kullanıcı bulundu (Oda: ${roomName})`);
-      
-    } catch (error: any) {
-      console.error('❌ loadKullanicilar HATASI:', error);
-      setDebug(`❌ HATA: ${error.message}`);
-    } finally {
-      setLoading(false);
-      console.log('🏁 loadKullanicilar BİTTİ');
+      await api.logAccess(currentUser.id, currentRoom.id, 'exit')
     }
-  };
+    setCurrentUser(null)
+    setCurrentRoom(null)
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* HEADER */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Yönetici Odası</h1>
-        <div className="flex gap-4 mt-2">
-          <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-            📍 {roomName}
-          </div>
-          <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-            🔑 Oda ID: {roomId || 'YOK!'}
-          </div>
-          <div className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-            👥 {kullanicilar.length} Kullanıcı
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Factory className="w-9 h-9 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Kartela Takip Sistemi</h1>
+                <p className="text-gray-600 text-sm">
+                  {currentUser ? currentRoom?.name : 'Oda Erişim Kontrolü'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {currentUser && currentRoom ? (
+                <>
+                  <div className="hidden md:flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <User className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800">{currentUser.name}</p>
+                      <p className="text-gray-600 text-sm">{currentUser.role}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="hidden md:flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <DoorOpen className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800">{currentRoom.name}</p>
+                      <p className="text-gray-600 text-sm">Aktif Oda</p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={handleLogout}
+                    className="px-5 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-colors flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Çıkış Yap
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Database className="w-5 h-5" />
+                  <span className="text-sm">Mock Backend Aktif</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        
-        {/* DEBUG PANEL */}
-        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="font-mono text-sm">
-            <div className="font-bold mb-1">🐛 DEBUG PANEL</div>
-            <div className="text-gray-700">{debug}</div>
-            {loading && <div className="mt-2 text-blue-600">⏳ Yükleniyor...</div>}
-          </div>
-          <button 
-            onClick={loadKullanicilar}
-            className="mt-3 px-3 py-1 bg-gray-800 text-white text-xs rounded hover:bg-gray-900"
-          >
-            🔄 Yenile
-          </button>
-        </div>
-      </div>
+      </header>
 
-      {/* ARAMA */}
-      <div className="bg-white rounded-xl shadow p-4 mb-6">
-        <div className="flex gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Kullanıcı ara..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {!currentUser || !currentRoom ? (
+          /* ODA GİRİŞ EKRANI */
+          <div className="space-y-12">
+            {/* Hero */}
+            <div className="text-center py-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Odaya Giriş Yapın
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+                Personel barkodunuzu ve oda QR kodunu sırayla taratın.
+                Backend API yetkinizi otomatik kontrol edecektir.
+              </p>
+            </div>
+
+            {/* Oda Giriş Bileşeni */}
+            <RoomAccess
+              onAccessGranted={handleAccessGranted}
+              onAccessDenied={handleAccessDenied}
             />
-          </div>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
 
-      {/* KULLANICI LİSTESİ */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-bold">Kullanıcı Listesi</h2>
-          <p className="text-gray-600 text-sm">
-            {roomName} odasına yetkili kullanıcılar
-          </p>
-        </div>
-        
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-3 text-gray-600">Kullanıcılar yükleniyor...</p>
-          </div>
-        ) : kullanicilar.length === 0 ? (
-          <div className="p-8 text-center">
-            <User className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-            <h3 className="text-lg font-semibold text-gray-700">Kullanıcı bulunamadı</h3>
-            <p className="text-gray-500 mt-1">Henüz kullanıcı eklenmemiş.</p>
-            <button 
-              onClick={loadKullanicilar}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Tekrar Dene
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y">
-            {kullanicilar.slice(0, 10).map((user) => (
-              <div key={user.id} className="p-4 hover:bg-gray-50 flex items-center gap-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <User className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold">{user.ad} {user.soyad}</div>
-                  <div className="text-sm text-gray-500">{user.kullanici_kodu}</div>
-                  <div className="text-xs text-gray-400">{user.unvan || 'Unvan yok'}</div>
-                </div>
-                <div className={`px-3 py-1 rounded-full text-sm ${user.aktif ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {user.aktif ? 'Aktif' : 'Pasif'}
+            {/* Backend Bilgisi */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
+              <div className="flex items-center gap-4">
+                <Database className="w-10 h-10 text-blue-600" />
+                <div>
+                  <h3 className="font-bold text-blue-800 mb-2">
+                    🔧 Backend Entegrasyonu
+                  </h3>
+                  <p className="text-blue-700">
+                    Şu anda <strong>Mock Backend API</strong> kullanılıyor. 
+                    Backend repository hazır olduğunda gerçek API'ye geçilecek.
+                  </p>
+                  <div className="flex gap-4 mt-4 text-sm">
+                    <div className="px-3 py-1 bg-white rounded-lg border">
+                      🎯 Oda Kontrolü: <strong>Mock</strong>
+                    </div>
+                    <div className="px-3 py-1 bg-white rounded-lg border">
+                      🗄️ Kartela Sorgu: <strong>Mock</strong>
+                    </div>
+                    <div className="px-3 py-1 bg-white rounded-lg border">
+                      📊 Log Kaydı: <strong>Mock</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Erişim Log'u */}
+            {accessLog.length > 0 && (
+              <div className="bg-white rounded-xl shadow p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                  📋 Son Erişim Kayıtları
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {accessLog.map((log, index) => (
+                    <div 
+                      key={index} 
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm"
+                    >
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ODALARA ÖZEL İÇERİK */
+          <div>
+            {currentRoom.name === 'Kartela Odası' ? (
+              /* KARTELA ODASI DASHBOARD */
+              <KartelaOdaDashboard roomName={currentRoom.name} />
+            ) : (
+              /* DİĞER ODALAR İÇİN KARTELA ARAMA */
+              <div className="space-y-8">
+                {/* Hoş Geldin */}
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full mb-6">
+                    <div className="text-4xl">🎨</div>
+                  </div>
+                  <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                    Hoş Geldiniz, {currentUser.name}!
+                  </h2>
+                  <p className="text-gray-600 text-xl">
+                    Şu anda <span className="font-semibold text-blue-600">
+                      {currentRoom.name}
+                    </span> odasındasınız.
+                  </p>
+                  <p className="text-gray-500 mt-2">
+                    Kartela barkodunu taratın veya renk kodunu girin.
+                  </p>
+                </div>
+
+                {/* Kartela Arama Bileşeni */}
+                <KartelaSearch currentRoom={currentRoom.name} />
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-800 text-white mt-12">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-4 md:mb-0">
+              <p className="text-gray-300">
+                🏭 Kartela Takip Sistemi • Frontend v1.0
+              </p>
+              <p className="text-gray-400 text-sm mt-1">
+                {currentUser 
+                  ? `Aktif: ${currentUser.name} - ${currentRoom?.name}`
+                  : 'Lütfen odaya giriş yapın'}
+              </p>
+            </div>
+            <div className="text-gray-400 text-sm">
+              Backend: <span className="text-amber-300">Mock API Aktif</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
-  );
+  )
 }
+EOF
