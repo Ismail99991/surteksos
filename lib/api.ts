@@ -65,7 +65,8 @@ export const api = {
           id: (roomData as any).id,
           name: (roomData as any).oda_adi,
           type: (roomData as any).oda_tipi || 'standart',
-          code: (roomData as any).oda_kodu
+          code: (roomData as any).oda_kodu,
+          oda_kodu: (roomData as any).oda_kodu
         },
         timestamp: new Date().toISOString(),
         accessCode: `ACC-${Date.now()}`
