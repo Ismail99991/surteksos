@@ -124,17 +124,6 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
       setStatus('granted')
       setStatusMessage('✅ Erişim izni verildi!')
 
-      // 4. Log kaydı oluştur (hareket_loglari)
-      await supabase
-        .from('hareket_loglari')
-        .insert({
-          kartela_no: 'ODA_GIRIS',
-          hareket_tipi: 'ODA_GIRIS',
-          kullanici_id: scannedUser.id,
-          kullanici_kodu: scannedUser.kullanici_kodu,
-          aciklama: `${scannedUser.ad} ${room.oda_adi} odasına giriş yaptı`,
-          tarih: new Date().toISOString()
-        }as any)
 
       // 5. Callback çağır
       setTimeout(() => {
