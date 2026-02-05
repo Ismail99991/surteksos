@@ -1,15 +1,11 @@
 'use client';
 
-export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSearchProps) {
-  console.log('🔵 KartelaSearch RENDER OLUYOR')
-  console.log('🔵 currentRoom:', currentRoom)
-  console.log('🔵 currentUserId:', currentUserId)
-
 import { useState, useEffect } from 'react';
 import { Search, Filter, Building, User, Eye, X, MapPin, BarChart3, Package } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import KartelaDetay from './KartelaDetay';
 import type { Database } from '@/types/supabase';
+
 
 type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
   renk_masalari?: {
@@ -30,6 +26,9 @@ interface KartelaSearchProps {
 }
 
 export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSearchProps) {
+  console.log('🔵 KartelaSearch RENDER OLUYOR')
+  console.log('🔵 currentRoom:', currentRoom)
+  console.log('🔵 currentUserId:', currentUserId)
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDurum, setFilterDurum] = useState<string>('');
   const [sonuclar, setSonuclar] = useState<Kartela[]>([]);
