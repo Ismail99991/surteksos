@@ -1,4 +1,3 @@
-// lib/supabase/client.ts - SON HALİ:
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 
@@ -14,11 +13,11 @@ const supabaseInstance = createSupabaseClient<Database>(supabaseUrl, supabaseKey
   }
 })
 
-// 1. createClient fonksiyonu (diğer component'ler için)
+// createClient fonksiyonu
 export const createClient = () => supabaseInstance
 
-// 2. Named export
+// Named export
 export const supabase = supabaseInstance
 
-// 3. Default export
+// Default export
 export default supabaseInstance

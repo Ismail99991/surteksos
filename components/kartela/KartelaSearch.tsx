@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, Filter, Building, User, Eye, X, MapPin, BarChart3, Package } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import KartelaDetay from './KartelaDetay';
 import type { Database } from '@/types/supabase';
 
@@ -39,9 +39,6 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     kalite: 0,
     kullanim_disi: 0
   });
-
-  // EN ÖNEMLİ DEĞİŞİKLİK: as any ekle
-  const supabase = createClient() as any;
 
   // Odaya göre başlık ve açıklama
   const odaBilgileri = {

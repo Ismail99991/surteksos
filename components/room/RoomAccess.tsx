@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { QrCode, User, DoorOpen, CheckCircle, XCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client' // ← Gerçek Supabase
+import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
+
+const supabase = createClient()
 
 interface RoomAccessProps {
   onAccessGranted: (userData: any, roomData: any) => void
@@ -23,8 +25,6 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
   const [status, setStatus] = useState<'idle' | 'checking' | 'granted' | 'denied'>('idle')
   const [statusMessage, setStatusMessage] = useState('')
   const [allRooms, setAllRooms] = useState<RoomType[]>([])
-
-
 
   // Odaları yükle
   useEffect(() => {
@@ -128,13 +128,13 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
       await supabase
         .from('hareket_loglari')
         .insert({
-              kartela_no: 'ODA_GIRIS',
-          hareket_tipi: 'ODA_GIRIS' as any,
+          kartela_no: 'ODA_GIRIS',
+          hareket_tipi: 'ODA_GIRIS',
           kullanici_id: scannedUser.id,
           kullanici_kodu: scannedUser.kullanici_kodu,
           aciklama: `${scannedUser.ad} ${room.oda_adi} odasına giriş yaptı`,
           tarih: new Date().toISOString()
-        } as any)
+        }as any)
 
       // 5. Callback çağır
       setTimeout(() => {
@@ -190,7 +190,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Adım Göstergesi (Aynı) */}
+      {/* Adım Göstergesi */}
       <div className="flex justify-center mb-12">
         <div className="flex items-center">
           <div className={`flex flex-col items-center ${step === 'user' ? 'text-blue-600' : 'text-green-600'}`}>
@@ -209,7 +209,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
         </div>
       </div>
 
-      {/* Scanner Alanı (Aynı UI, sadece fonksiyonlar değişti) */}
+      {/* Scanner Alanı */}
       <div className="bg-white rounded-2xl shadow-xl p-8">
         {step === 'user' ? (
           // PERSONEL BARKODU ADIMI
@@ -335,7 +335,7 @@ export default function RoomAccess({ onAccessGranted, onAccessDenied }: RoomAcce
           </div>
         )}
 
-        {/* Durum Mesajı (Aynı) */}
+        {/* Durum Mesajı */}
         {status !== 'idle' && (
           <div className={`mt-6 p-4 rounded-xl border-2 ${
             status === 'granted' ? 'border-green-200 bg-green-50' :
