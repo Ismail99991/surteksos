@@ -92,7 +92,7 @@ export default function OdaComponentModal({
   useEffect(() => {
     if (mode === 'edit' && component) {
       setFormData({
-        oda_id: component.oda_id || '',
+        oda_id: String(component.oda_id) || '',
         component_adi: component.component_adi || '',
         component_yolu: component.component_yolu || '',
         sira_no: component.sira_no || 0,
@@ -122,7 +122,7 @@ export default function OdaComponentModal({
       const { data, error } = await supabase
         .from('odalar_components')
         .select('component_adi')
-        .eq('oda_id', formData.oda_id)
+        .eq('oda_id', Number(formData.oda_id))
         .eq('component_adi', formData.component_adi.trim())
         .single();
 
@@ -178,20 +178,20 @@ export default function OdaComponentModal({
   // Sıra numarası hesapla
   const calculateSiraNo = async (odaId: string): Promise<number> => {
     if (mode === 'edit' && component) {
-      return component.sira_no;
+      return component.sira_no || 0;
     }
 
     try {
       const { data, error } = await supabase
         .from('odalar_components')
         .select('sira_no')
-        .eq('oda_id', odaId)
+        .eq('oda_id', Number(odaId))
         .order('sira_no', { ascending: false })
         .limit(1);
 
       if (error) throw error;
       
-      return data && data.length > 0 ? data[0].sira_no + 1 : 1;
+      return data && data.length > 0 ? (data[0]?.sira_no || 0) + 1 : 1;
     } catch (error) {
       console.error('Sıra numarası hesaplama hatası:', error);
       return 1;
@@ -210,6 +210,7 @@ export default function OdaComponentModal({
     try {
       const submitData = {
         ...formData,
+        oda_id: Number(formData.oda_id),
         component_adi: formData.component_adi.trim(),
         component_yolu: formData.component_yolu.trim(),
         sira_no: formData.sira_no || await calculateSiraNo(formData.oda_id)

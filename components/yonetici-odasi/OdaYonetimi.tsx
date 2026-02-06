@@ -97,7 +97,7 @@ export default function OdaYonetimi({
   const toggleOdaDurum = async (oda: OdaType) => {
     try {
 
-      const updateData: OdaUpdate = { aktif: !oda.aktif }
+      const updateData: Partial<OdaType> = { aktif: !oda.aktif }
 
       const { error } = await supabase
         .from('odalar')
@@ -131,7 +131,7 @@ export default function OdaYonetimi({
     try {
       const qrText = `ROOM-${oda.oda_kodu}-${Date.now()}`;
       
-      const updateData: OdaUpdate = { qr_kodu: qrText }
+      const updateData: Partial<OdaType> = { qr_kodu: qrText }
 
       const { error } = await supabase
         .from('odalar')
@@ -408,7 +408,7 @@ export default function OdaYonetimi({
               {/* Oluşturulma Tarihi */}
               <div className="text-xs text-gray-500 mb-4">
                 <MapPin className="h-3 w-3 inline mr-1" />
-                Oluşturulma: {new Date(oda.created_at).toLocaleDateString('tr-TR')}
+                Oluşturulma: {oda.created_at ? new Date(oda.created_at).toLocaleDateString('tr-TR') : 'Tarih bilinmiyor'}
               </div>
 
               {/* İşlem Butonları */}

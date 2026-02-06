@@ -4,11 +4,11 @@ import {
   Users, 
   Building, 
   KeyRound, 
-  Database,
   Shield,
   BarChart3,
   TrendingUp,
-  Activity
+  Activity,
+  HardDrive
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
@@ -153,7 +153,7 @@ export default function YoneticiIstatistikler({
       id: 'loglar',
       baslik: 'Sistem Logu',
       deger: istatistikler.bugunLog + istatistikler.son24SaatGiris,
-      ikon: Database,
+      ikon: HardDrive,
       renk: 'red',
       altBaslik: `${istatistikler.bugunLog} bugün`,
       trend: null

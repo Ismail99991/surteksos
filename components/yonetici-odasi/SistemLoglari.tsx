@@ -28,6 +28,7 @@ const supabase = createClient();
 
 type LogType = SupabaseDatabase['public']['Tables']['sistem_loglari']['Row'];
 type KullaniciType = SupabaseDatabase['public']['Tables']['kullanicilar']['Row'];
+type KullaniciSummary = Pick<KullaniciType, 'id' | 'ad' | 'soyad'>;
 
 interface SistemLoglariProps {
   refreshTrigger?: boolean;
@@ -61,7 +62,7 @@ export default function SistemLoglari({
 }: SistemLoglariProps) {
   // State'ler
   const [loglar, setLoglar] = useState<LogType[]>([]);
-  const [kullanicilar, setKullanicilar] = useState<KullaniciType[]>([]);
+  const [kullanicilar, setKullanicilar] = useState<KullaniciSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -113,7 +114,7 @@ export default function SistemLoglari({
       }
 
       if (selectedKullanici !== 'all') {
-        query = query.eq('kullanici_id', selectedKullanici);
+        query = query.eq('kullanici_id', parseInt(selectedKullanici));
       }
 
       // Sayfalama
@@ -185,7 +186,7 @@ export default function SistemLoglari({
     
     const csvData = loglar.map(log => {
       const kullanici = kullanicilar.find(k => k.id === log.kullanici_id);
-      const tarih = new Date(log.created_at);
+      const tarih = new Date(log.created_at ?? new Date());
       
       return [
         tarih.toLocaleDateString('tr-TR'),
@@ -212,7 +213,7 @@ export default function SistemLoglari({
   // Log detayını formatla
   const formatLogDetail = (log: LogType) => {
     const kullanici = kullanicilar.find(k => k.id === log.kullanici_id);
-    const tarih = new Date(log.created_at);
+    const tarih = new Date(log.created_at ?? new Date());
     
     return {
       tarih: tarih.toLocaleDateString('tr-TR'),
@@ -446,7 +447,7 @@ export default function SistemLoglari({
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gray-500" />
                         <span className="text-sm text-gray-300">
-                          {new Date(log.created_at).toLocaleTimeString('tr-TR', {
+                          {new Date(log.created_at ?? new Date()).toLocaleTimeString('tr-TR', {
                             hour: '2-digit',
                             minute: '2-digit',
                             second: '2-digit'

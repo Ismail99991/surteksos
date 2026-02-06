@@ -154,6 +154,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
   const handleSearch = async () => {
     setLoading(true);
+    let data: Kartela[] | null = null;
     
     try {
       let query = supabase
@@ -215,7 +216,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         throw error;
       }
 
-      setSonuclar(data || []);
+      setSonuclar((data || [])as any);
       
       console.log(`[${currentRoom}] Arama:`, {
         arama: searchQuery,
@@ -225,7 +226,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
     } catch (error) {
       console.error('Arama hatası:', error);
-      setSonuclar([]);
+      setSonuclar((data || []) as any);
       alert('Arama sırasında hata oluştu!');
     } finally {
       setLoading(false);
