@@ -6,7 +6,6 @@ import {
   Edit, 
   Trash2, 
   Search, 
-  Filter, 
   Check, 
   X, 
   QrCode,
@@ -41,7 +40,6 @@ export default function KullaniciYonetimi({
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [aktifFiltre, setAktifFiltre] = useState<'all' | 'active' | 'inactive'>('all');
-  const [sistemYoneticisiFiltre, setSistemYoneticisiFiltre] = useState<'all' | 'yes' | 'no'>('all');
   const [selectedKullanici, setSelectedKullanici] = useState<KullaniciType | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -59,20 +57,13 @@ export default function KullaniciYonetimi({
       let query = supabase
         .from('kullanicilar')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('olusturulma_tarihi', { ascending: false });
 
       // Aktif filtre uygula
       if (aktifFiltre === 'active') {
         query = query.eq('aktif', true);
       } else if (aktifFiltre === 'inactive') {
         query = query.eq('aktif', false);
-      }
-
-      // Sistem yöneticisi filtre uygula
-      if (sistemYoneticisiFiltre === 'yes') {
-        query = query.eq('sistem_yoneticisi', true);
-      } else if (sistemYoneticisiFiltre === 'no') {
-        query = query.eq('sistem_yoneticisi', false);
       }
 
       const { data, error } = await query;
@@ -95,16 +86,15 @@ export default function KullaniciYonetimi({
       kullanici.ad.toLowerCase().includes(searchLower) ||
       kullanici.soyad.toLowerCase().includes(searchLower) ||
       kullanici.kullanici_kodu.toLowerCase().includes(searchLower) ||
-      kullanici.email?.toLowerCase().includes(searchLower) ||
-      kullanici.unvan?.toLowerCase().includes(searchLower) ||
-      kullanici.departman?.toLowerCase().includes(searchLower)
+      (kullanici.unvan || '').toLowerCase().includes(searchLower) ||
+      (kullanici.departman || '').toLowerCase().includes(searchLower)
     );
   });
 
   // Kullanıcı durumunu değiştir
   const toggleKullaniciDurum = async (kullanici: KullaniciType) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('kullanicilar')
         .update({ aktif: !kullanici.aktif })
         .eq('id', kullanici.id);
@@ -117,10 +107,11 @@ export default function KullaniciYonetimi({
       ));
 
       // Sistem logu ekle
-      await supabase.from('sistem_loglari').insert([{
-        islem_turu: kullanici.aktif ? 'KULLANICI_PASIF_YAPILDI' : 'KULLANICI_AKTIF_YAPILDI',
-        detay: `${kullanici.ad} ${kullanici.soyad} ${kullanici.aktif ? 'pasif' : 'aktif'} yapıldı`,
-        ip_adresi: '127.0.0.1'
+      await (supabase as any).from('hareket_loglari').insert([{
+        hareket_tipi: kullanici.aktif ? 'KULLANICI_PASIF_YAPILDI' : 'KULLANICI_AKTIF_YAPILDI',
+        islem_detay: `${kullanici.ad} ${kullanici.soyad} ${kullanici.aktif ? 'pasif' : 'aktif'} yapıldı`,
+        ip_adresi: '127.0.0.1',
+        tarih: new Date().toISOString()
       }]);
 
       onKullaniciGuncellendi?.();
@@ -136,7 +127,7 @@ export default function KullaniciYonetimi({
     try {
       const qrText = `USER-${kullanici.kullanici_kodu}-${Date.now()}`;
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('kullanicilar')
         .update({ qr_kodu: qrText })
         .eq('id', kullanici.id);
@@ -151,10 +142,11 @@ export default function KullaniciYonetimi({
       alert('QR kodu oluşturuldu ve atandı!');
 
       // Sistem logu ekle
-      await supabase.from('sistem_loglari').insert([{
-        islem_turu: 'KULLANICI_QR_OLUSTURULDU',
-        detay: `${kullanici.ad} ${kullanici.soyad} için QR kodu oluşturuldu`,
-        ip_adresi: '127.0.0.1'
+      await (supabase as any).from('hareket_loglari').insert([{
+        hareket_tipi: 'KULLANICI_QR_OLUSTURULDU',
+        islem_detay: `${kullanici.ad} ${kullanici.soyad} için QR kodu oluşturuldu`,
+        ip_adresi: '127.0.0.1',
+        tarih: new Date().toISOString()
       }]);
 
     } catch (error) {
@@ -170,12 +162,10 @@ export default function KullaniciYonetimi({
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('kullanicilar')
         .update({ 
-          aktif: false,
-          silindi: true,
-          silinme_tarihi: new Date().toISOString()
+          aktif: false
         })
         .eq('id', kullanici.id);
 
@@ -185,10 +175,11 @@ export default function KullaniciYonetimi({
       setKullanicilar(prev => prev.filter(k => k.id !== kullanici.id));
 
       // Sistem logu ekle
-      await supabase.from('sistem_loglari').insert([{
-        islem_turu: 'KULLANICI_SILINDI',
-        detay: `${kullanici.ad} ${kullanici.soyad} kullanıcısı silindi`,
-        ip_adresi: '127.0.0.1'
+      await (supabase as any).from('hareket_loglari').insert([{
+        hareket_tipi: 'KULLANICI_SILINDI',
+        islem_detay: `${kullanici.ad} ${kullanici.soyad} kullanıcısı silindi`,
+        ip_adresi: '127.0.0.1',
+        tarih: new Date().toISOString()
       }]);
 
       alert('Kullanıcı silindi!');
@@ -223,7 +214,6 @@ export default function KullaniciYonetimi({
   const istatistikler = {
     toplam: kullanicilar.length,
     aktif: kullanicilar.filter(k => k.aktif).length,
-    sistemYoneticisi: kullanicilar.filter(k => k.sistem_yoneticisi).length,
     qrKoduOlan: kullanicilar.filter(k => k.qr_kodu).length
   };
 
@@ -255,8 +245,8 @@ export default function KullaniciYonetimi({
             <span className="text-green-400 font-semibold">{istatistikler.aktif}</span>
           </div>
           <div className="px-3 py-1 bg-purple-500/20 rounded-lg">
-            <span className="text-purple-400 text-sm">Yönetici: </span>
-            <span className="text-purple-400 font-semibold">{istatistikler.sistemYoneticisi}</span>
+            <span className="text-purple-400 text-sm">QR Kod: </span>
+            <span className="text-purple-400 font-semibold">{istatistikler.qrKoduOlan}</span>
           </div>
         </div>
       </div>
@@ -290,16 +280,6 @@ export default function KullaniciYonetimi({
               <option value="all">Tüm Durumlar</option>
               <option value="active">Aktif</option>
               <option value="inactive">Pasif</option>
-            </select>
-
-            <select
-              value={sistemYoneticisiFiltre}
-              onChange={(e) => setSistemYoneticisiFiltre(e.target.value as any)}
-              className="px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-            >
-              <option value="all">Tüm Yetkiler</option>
-              <option value="yes">Sistem Yöneticisi</option>
-              <option value="no">Normal Kullanıcı</option>
             </select>
 
             <button
@@ -360,9 +340,6 @@ export default function KullaniciYonetimi({
                         <div>
                           <div className="font-semibold text-white">
                             {kullanici.ad} {kullanici.soyad}
-                            {kullanici.sistem_yoneticisi && (
-                              <Shield className="h-4 w-4 text-purple-400 inline-block ml-2" />
-                            )}
                           </div>
                           <div className="text-sm text-gray-400">
                             {kullanici.unvan || '-'} • {kullanici.departman || '-'}
@@ -380,18 +357,12 @@ export default function KullaniciYonetimi({
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        {kullanici.email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-3 w-3 text-gray-500" />
-                            <span className="text-gray-300">{kullanici.email}</span>
-                          </div>
-                        )}
-                        {kullanici.telefon && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-3 w-3 text-gray-500" />
-                            <span className="text-gray-300">{kullanici.telefon}</span>
-                          </div>
-                        )}
+                        <div className="text-sm text-gray-400">
+                          Unvan: {kullanici.unvan || '-'}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          Departman: {kullanici.departman || '-'}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -403,7 +374,7 @@ export default function KullaniciYonetimi({
                           </span>
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(kullanici.created_at).toLocaleDateString('tr-TR')}
+                          {new Date(kullanici.olusturulma_tarihi|| Date.now()).toLocaleDateString('tr-TR')}
                         </div>
                       </div>
                     </td>

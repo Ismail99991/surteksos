@@ -22,7 +22,8 @@ import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 import OdaModal from './modals/OdaModal';
 
-const supabase = createClient();
+const supabase: any = createClient();
+
 
 type OdaType = Database['public']['Tables']['odalar']['Row'];
 
@@ -95,9 +96,12 @@ export default function OdaYonetimi({
   // Oda durumunu değiştir
   const toggleOdaDurum = async (oda: OdaType) => {
     try {
+
+      const updateData: OdaUpdate = { aktif: !oda.aktif }
+
       const { error } = await supabase
         .from('odalar')
-        .update({ aktif: !oda.aktif })
+        .update(updateData)
         .eq('id', oda.id);
 
       if (error) throw error;
@@ -108,7 +112,7 @@ export default function OdaYonetimi({
       ));
 
       // Sistem logu ekle
-      await supabase.from('sistem_loglari').insert([{
+      await (supabase as any).from('sistem_loglari').insert([{
         islem_turu: oda.aktif ? 'ODA_PASIF_YAPILDI' : 'ODA_AKTIF_YAPILDI',
         detay: `${oda.oda_adi} (${oda.oda_kodu}) ${oda.aktif ? 'pasif' : 'aktif'} yapıldı`,
         ip_adresi: '127.0.0.1'
@@ -127,9 +131,11 @@ export default function OdaYonetimi({
     try {
       const qrText = `ROOM-${oda.oda_kodu}-${Date.now()}`;
       
+      const updateData: OdaUpdate = { qr_kodu: qrText }
+
       const { error } = await supabase
         .from('odalar')
-        .update({ qr_kodu: qrText })
+        .update(updateData)
         .eq('id', oda.id);
 
       if (error) throw error;

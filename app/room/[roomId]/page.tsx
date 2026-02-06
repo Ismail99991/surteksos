@@ -25,7 +25,7 @@ const ROOM_NAMES: Record<string, string> = {
 // Dinamik import için oda component'leri
 const ROOM_COMPONENT_IMPORTS: Record<string, () => Promise<{ default: React.ComponentType<any> }>> = {
   'yonetici_odasi': () => import('@/components/yonetici-odasi/YoneticiDashboard'),
-  'kartela_odasi': () => import('@/components/kartela-odasi/CreateKartelaForm'),
+  'kartela_odasi': () => import('@/components/kartela-odasi/KartelaOdaDashboard'),
 }
 
 export default function RoomPage() {
@@ -95,7 +95,7 @@ export default function RoomPage() {
       const { data, error } = await supabase
         .from('kullanicilar')
         .select('*')
-        .eq('id', userId)
+        .eq('id', Number(userId))
         .eq('aktif', true)
         .single()
       
@@ -114,7 +114,7 @@ export default function RoomPage() {
       const { data, error } = await supabase
         .from('odalar')
         .select('*')
-        .eq('id', roomId)
+        .eq('id', Number(roomId))
         .eq('aktif', true)
         .single()
       
@@ -152,18 +152,11 @@ export default function RoomPage() {
         )
       } else if (roomId === 'kartela_odasi') {
         // Kartela odası için birden fazla component yükleyebiliriz
-        const { default: AssignToCustomer } = await import('@/components/kartela-odasi/AssignToCustomer')
-        const { default: ResetKartelaModal } = await import('@/components/kartela-odasi/ResetKartelaModal')
-        
+        // Geçici olarak sadece KartelaOdaDashboard kullanıyoruz
+        // AssignToCustomer ve ResetKartelaModal sonra eklenecek
         components.push(
-          <div key="create" className="bg-white rounded-xl shadow p-6 border">
-            <Component />
-          </div>,
-          <div key="assign" className="bg-white rounded-xl shadow p-6 border">
-            <AssignToCustomer />
-          </div>,
-          <div key="reset" className="bg-white rounded-xl shadow p-6 border">
-            <ResetKartelaModal />
+          <div key="dashboard" className="bg-white rounded-xl shadow p-6 border col-span-full">
+            <Component roomName="Kartela Odası" currentUserId={userData?.id} />
           </div>
         )
       }

@@ -22,7 +22,7 @@ type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
 
 interface KartelaSearchProps {
   currentRoom: string;
-  currentUserId?: string;
+  currentUserId?: string | number;
 }
 
 export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSearchProps) {
@@ -451,7 +451,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sonuclar.map((kartela) => {
-                const gozDurumu = getGozDurumu(kartela.goz_sayisi, kartela.maksimum_goz);
+                const gozDurumu = getGozDurumu(kartela.goz_sayisi || 0, kartela.maksimum_goz || 14);
                 
                 return (
                   <div 
@@ -472,7 +472,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        {getDurumBadge(kartela.durum)}
+                        {getDurumBadge(kartela.durum || 'AKTIF')}
                         <div className={`text-xs font-medium ${gozDurumu.color}`}>
                           {gozDurumu.text}
                         </div>
@@ -514,7 +514,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                       
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 text-xs">
-                          📅 {formatTarih(kartela.olusturulma_tarihi)}
+                          📅 {formatTarih(kartela.olusturulma_tarihi || '')}
                         </span>
                         <span className="text-blue-600 font-medium text-sm">
                           Detay →

@@ -35,6 +35,17 @@ interface YetkiYonetimiProps {
   onYetkiDegisti?: () => void;
 }
 
+interface NewYetkiState {
+  kullanici_id: number;
+  oda_id: number;
+  kartela_olusturabilir: boolean;
+  kartela_silebilir: boolean;
+  rapor_gorebilir: boolean;
+  raf_duzenleyebilir: boolean;
+  kullanici_yonetebilir: boolean;
+  sistem_yoneticisi: boolean;
+  aktif: boolean;
+}
 export default function YetkiYonetimi({ 
   refreshTrigger = false,
   onYetkiDegisti 
@@ -59,8 +70,8 @@ export default function YetkiYonetimi({
   
   // Yeni yetki formu
   const [newYetki, setNewYetki] = useState({
-    kullanici_id: '',
-    oda_id: '',
+    kullanici_id: 0,
+    oda_id: 0,
     kartela_olusturabilir: false,
     kartela_silebilir: false,
     rapor_gorebilir: false,
@@ -125,12 +136,12 @@ export default function YetkiYonetimi({
     }
 
     // Kullanıcı filtresi
-    if (selectedKullaniciId !== 'all' && yetki.kullanici_id !== selectedKullaniciId) {
+    if (selectedKullaniciId !== 'all' && yetki.kullanici_id !== Number(selectedKullaniciId)) {
       return false;
     }
 
     // Oda filtresi
-    if (selectedOdaId !== 'all' && yetki.oda_id !== selectedOdaId) {
+    if (selectedOdaId !== 'all' && yetki.oda_id !== Number(selectedOdaId)) {
       return false;
     }
 
@@ -153,14 +164,24 @@ export default function YetkiYonetimi({
         // Güncelleme
         const { error } = await supabase
           .from('kullanici_yetkileri')
-          .update(newYetki)
+          .update({
+    kullanici_id: Number(newYetki.kullanici_id),  // STRING -> NUMBER
+    oda_id: Number(newYetki.oda_id),              // STRING -> NUMBER
+    kartela_olusturabilir: newYetki.kartela_olusturabilir,
+    kartela_silebilir: newYetki.kartela_silebilir,
+    rapor_gorebilir: newYetki.rapor_gorebilir,
+    raf_duzenleyebilir: newYetki.raf_duzenleyebilir,
+    kullanici_yonetebilir: newYetki.kullanici_yonetebilir,
+    sistem_yoneticisi: newYetki.sistem_yoneticisi,
+    aktif: newYetki.aktif
+  })
           .eq('id', selectedYetki.id);
 
         if (error) throw error;
 
         // Sistem logu
-        const kullanici = kullanicilar.find(k => k.id === newYetki.kullanici_id);
-        const oda = odalar.find(o => o.id === newYetki.oda_id);
+        const kullanici = kullanicilar.find(k => k.id === Number(newYetki.kullanici_id));
+        const oda = odalar.find(o => o.id === Number(newYetki.oda_id));
         await supabase.from('sistem_loglari').insert([{
           islem_turu: 'YETKI_GUNCELLENDI',
           detay: `${kullanici?.ad} ${kullanici?.soyad} → ${oda?.oda_adi} yetkileri güncellendi`,
@@ -171,13 +192,23 @@ export default function YetkiYonetimi({
         // Yeni yetki
         const { error } = await supabase
           .from('kullanici_yetkileri')
-          .insert([newYetki]);
+          .insert([{
+  kullanici_id: Number(newYetki.kullanici_id),  // STRING -> NUMBER
+  oda_id: Number(newYetki.oda_id),              // STRING -> NUMBER
+  kartela_olusturabilir: newYetki.kartela_olusturabilir,
+  kartela_silebilir: newYetki.kartela_silebilir,
+  rapor_gorebilir: newYetki.rapor_gorebilir,
+  raf_duzenleyebilir: newYetki.raf_duzenleyebilir,
+  kullanici_yonetebilir: newYetki.kullanici_yonetebilir,
+  sistem_yoneticisi: newYetki.sistem_yoneticisi,
+  aktif: newYetki.aktif
+}]);
 
         if (error) throw error;
 
         // Sistem logu
-        const kullanici = kullanicilar.find(k => k.id === newYetki.kullanici_id);
-        const oda = odalar.find(o => o.id === newYetki.oda_id);
+        const kullanici = kullanicilar.find(k => k.id === Number(newYetki.kullanici_id));
+        const oda = odalar.find(o => o.id === Number(newYetki.oda_id));
         await supabase.from('sistem_loglari').insert([{
           islem_turu: 'YETKI_OLUSTURULDU',
           detay: `${kullanici?.ad} ${kullanici?.soyad} → ${oda?.oda_adi} yetkisi oluşturuldu`,
@@ -271,8 +302,8 @@ export default function YetkiYonetimi({
   // Yetki formunu sıfırla
   const resetYetkiForm = () => {
     setNewYetki({
-      kullanici_id: '',
-      oda_id: '',
+      kullanici_id: 0,
+      oda_id: 0,
       kartela_olusturabilir: false,
       kartela_silebilir: false,
       rapor_gorebilir: false,
@@ -302,7 +333,7 @@ export default function YetkiYonetimi({
       raf_duzenleyebilir: yetki.raf_duzenleyebilir || false,
       kullanici_yonetebilir: yetki.kullanici_yonetebilir || false,
       sistem_yoneticisi: yetki.sistem_yoneticisi || false,
-      aktif: yetki.aktif
+      aktif: yetki.aktif || false 
     });
     setModalMode('edit');
     setShowYetkiModal(true);
@@ -547,7 +578,7 @@ export default function YetkiYonetimi({
                             </span>
                           </div>
                           <div className="text-xs text-gray-500">
-                            {new Date(yetki.created_at).toLocaleDateString('tr-TR')}
+                            {new Date(yetki.created_at || '1970-01-01').toLocaleDateString('tr-TR')}
                           </div>
                         </div>
                       </td>
@@ -640,7 +671,7 @@ export default function YetkiYonetimi({
                     </label>
                     <select
                       value={newYetki.kullanici_id}
-                      onChange={(e) => setNewYetki({...newYetki, kullanici_id: e.target.value})}
+                      onChange={(e) => setNewYetki({...newYetki, kullanici_id: Number(e.target.value)})}
                       className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none text-white"
                     >
                       <option value="">Kullanıcı seçin</option>
@@ -658,7 +689,7 @@ export default function YetkiYonetimi({
                     </label>
                     <select
                       value={newYetki.oda_id}
-                      onChange={(e) => setNewYetki({...newYetki, oda_id: e.target.value})}
+                      onChange={(e) => setNewYetki({...newYetki, oda_id: Number(e.target.value)})}
                       className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none text-white"
                     >
                       <option value="">Oda seçin</option>

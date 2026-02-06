@@ -325,7 +325,7 @@ export default function AssignToCustomer({ onClose, onAssign, currentKartelaId }
                     <div>
                       <p className="text-sm text-gray-500">Oluşturulma</p>
                       <p className="font-medium">
-                        {new Date(selectedKartela.olusturulma_tarihi).toLocaleDateString('tr-TR')}
+                        {new Date(selectedKartela.olusturulma_tarihi|| Date.now()).toLocaleDateString('tr-TR')}
                       </p>
                     </div>
                   </div>

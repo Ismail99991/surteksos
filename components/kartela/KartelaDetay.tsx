@@ -70,7 +70,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
     }
   };
 
-  const durumBilgi = getDurumRenk(kartela.durum);
+  const durumBilgi = getDurumRenk(kartela.durum|| 'AKTIF');
   
   // Göz durumu
   const getGozDurumu = (goz_sayisi: number) => {
@@ -80,7 +80,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
     return { text: `🔴 DOLU (14/14)`, color: 'text-red-600' };
   };
 
-  const gozDurumu = getGozDurumu(kartela.goz_sayisi);
+  const gozDurumu = getGozDurumu(kartela.goz_sayisi|| 0);
   
   // Tarih formatı
   const formatTarih = (tarih: string) => {
@@ -235,7 +235,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Oluşturulma:</span>
-              <span className="font-medium">{formatTarih(kartela.olusturulma_tarihi)}</span>
+              <span className="font-medium">{formatTarih(kartela.olusturulma_tarihi || '')}</span>
             </div>
             {kartela.arsive_alma_tarihi && (
               <div className="flex justify-between">
@@ -294,19 +294,19 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
             <div className="space-y-3">
               {hareketler.map((hareket) => (
                 <div key={hareket.id} className="flex items-start gap-3 p-3 bg-white rounded border">
-                  <div className="text-2xl">{getHareketIcon(hareket.hareket_tipi)}</div>
+                  <div className="text-2xl">{getHareketIcon(hareket.hareket_tipi || '')}</div>
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium text-gray-900">
-                          {hareket.hareket_tipi.replace(/_/g, ' ')}
+                          {(hareket.hareket_tipi || '').replace(/_/g, ' ')}
                         </p>
                         {hareket.aciklama && (
                           <p className="text-sm text-gray-600 mt-1">{hareket.aciklama}</p>
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">{formatKisaTarih(hareket.tarih)}</p>
+                        <p className="text-sm text-gray-500">{formatKisaTarih(hareket.tarih || '')}</p>
                         {hareket.kullanici_kodu && (
                           <p className="text-xs text-gray-400 mt-1">{hareket.kullanici_kodu}</p>
                         )}

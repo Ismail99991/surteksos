@@ -7,7 +7,7 @@ import type { Database } from '@/types/supabase'
 import QRDisplayModal from '@/components/kartela/QRDisplayModal'
 import type { QRData } from '@/utils/qrGenerator'
 
-type RenkMasasi = Database['public']['Tables']['renk_masalari']['Row']
+type RenkMasasi = any
 
 interface CreateKartelaFormProps {
   onClose: () => void

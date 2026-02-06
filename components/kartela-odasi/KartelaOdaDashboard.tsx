@@ -282,7 +282,7 @@ export default function KartelaOdaDashboard({ roomName, currentUserId }: Kartela
                     Göz: {kartela.goz_sayisi}/14
                   </div>
                   <div className="text-sm text-gray-500">
-                    {new Date(kartela.olusturulma_tarihi).toLocaleDateString('tr-TR')}
+                    {new Date(kartela.olusturulma_tarihi|| Date.now()).toLocaleDateString('tr-TR')}
                   </div>
                 </div>
               </div>

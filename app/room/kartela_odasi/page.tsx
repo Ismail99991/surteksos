@@ -75,7 +75,7 @@ export default function KartelaOdasiPage() {
       const { data, error } = await supabase
         .from('kullanicilar')
         .select('*')
-        .eq('id', userId)
+        .eq('id', Number(userId))
         .eq('aktif', true)
         .single()
       
@@ -94,7 +94,7 @@ export default function KartelaOdasiPage() {
       const { data, error } = await supabase
         .from('odalar')
         .select('*')
-        .eq('id', roomId)
+        .eq('id', Number(roomId))
         .eq('aktif', true)
         .single()
       

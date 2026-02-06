@@ -51,7 +51,7 @@ export default function OdaComponentYonetimi({
   
   // Filtreler
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOdaId, setSelectedOdaId] = useState<string>('all');
+  const [selectedOdaId, setSelectedOdaId] = useState<number | 'all'>('all');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [yoneticiFilter, setYoneticiFilter] = useState<'all' | 'visible' | 'hidden'>('all');
   
@@ -95,7 +95,7 @@ export default function OdaComponentYonetimi({
 
   // Filtrelenmiş component'ler
   const filteredComponents = odaComponents.filter(component => {
-    // Oda filtresi
+    // Oda filtresi - DEĞİŞTİRİLDİ
     if (selectedOdaId !== 'all' && component.oda_id !== selectedOdaId) {
       return false;
     }
@@ -107,9 +107,9 @@ export default function OdaComponentYonetimi({
       const matchesSearch = 
         component.component_adi.toLowerCase().includes(searchLower) ||
         component.component_yolu.toLowerCase().includes(searchLower) ||
-        component.aciklama?.toLowerCase().includes(searchLower) ||
-        oda?.oda_adi.toLowerCase().includes(searchLower) ||
-        oda?.oda_kodu.toLowerCase().includes(searchLower);
+        (component.aciklama || '').toLowerCase().includes(searchLower) ||
+        (oda?.oda_adi || '').toLowerCase().includes(searchLower) ||
+        (oda?.oda_kodu || '').toLowerCase().includes(searchLower);
       
       if (!matchesSearch) return false;
     }
@@ -125,28 +125,28 @@ export default function OdaComponentYonetimi({
     return true;
   });
 
-  // Sıralama işlemleri
+  // Sıralama işlemleri - DÜZELTİLDİ
   const moveComponentUp = async (component: OdaComponentType) => {
     try {
       // Aynı oda içindeki component'leri bul
       const sameRoomComponents = odaComponents
         .filter(c => c.oda_id === component.oda_id)
-        .sort((a, b) => a.sira_no - b.sira_no);
+        .sort((a, b) => (a.sira_no|| 0) - (b.sira_no|| 0));
 
       const currentIndex = sameRoomComponents.findIndex(c => c.id === component.id);
       if (currentIndex <= 0) return; // Zaten en üstte
 
       const previousComponent = sameRoomComponents[currentIndex - 1];
 
-      // Sıra numaralarını değiştir
-      const { error: error1 } = await supabase
+      // Sıra numaralarını değiştir - DÜZELTİLDİ
+      const { error: error1 } = await (supabase as any)
         .from('odalar_components')
-        .update({ sira_no: component.sira_no })
+        .update({ sira_no: component.sira_no } as any)
         .eq('id', previousComponent.id);
 
-      const { error: error2 } = await supabase
+      const { error: error2 } = await (supabase as any)
         .from('odalar_components')
-        .update({ sira_no: previousComponent.sira_no })
+        .update({ sira_no: previousComponent.sira_no } as any)
         .eq('id', component.id);
 
       if (error1 || error2) throw error1 || error2;
@@ -165,22 +165,22 @@ export default function OdaComponentYonetimi({
       // Aynı oda içindeki component'leri bul
       const sameRoomComponents = odaComponents
         .filter(c => c.oda_id === component.oda_id)
-        .sort((a, b) => a.sira_no - b.sira_no);
+        .sort((a, b) => (a.sira_no|| 0) - (b.sira_no|| 0));
 
       const currentIndex = sameRoomComponents.findIndex(c => c.id === component.id);
       if (currentIndex >= sameRoomComponents.length - 1) return; // Zaten en altta
 
       const nextComponent = sameRoomComponents[currentIndex + 1];
 
-      // Sıra numaralarını değiştir
-      const { error: error1 } = await supabase
+      // Sıra numaralarını değiştir - DÜZELTİLDİ
+      const { error: error1 } = await (supabase as any)
         .from('odalar_components')
-        .update({ sira_no: component.sira_no })
+        .update({ sira_no: component.sira_no } as any)
         .eq('id', nextComponent.id);
 
-      const { error: error2 } = await supabase
+      const { error: error2 } = await (supabase as any)
         .from('odalar_components')
-        .update({ sira_no: nextComponent.sira_no })
+        .update({ sira_no: nextComponent.sira_no } as any)
         .eq('id', component.id);
 
       if (error1 || error2) throw error1 || error2;
@@ -194,12 +194,12 @@ export default function OdaComponentYonetimi({
     }
   };
 
-  // Component durumunu değiştir
+  // Component durumunu değiştir - DÜZELTİLDİ
   const toggleComponentStatus = async (component: OdaComponentType, field: 'aktif' | 'yonetici_gorebilir') => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('odalar_components')
-        .update({ [field]: !component[field] })
+        .update({ [field]: !component[field] } as any)
         .eq('id', component.id);
 
       if (error) throw error;
@@ -217,14 +217,14 @@ export default function OdaComponentYonetimi({
     }
   };
 
-  // Component sil
+  // Component sil - DÜZELTİLDİ
   const deleteComponent = async (component: OdaComponentType) => {
     if (!confirm(`${component.component_adi} component'ini silmek istediğinize emin misiniz?`)) {
       return;
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('odalar_components')
         .delete()
         .eq('id', component.id);
@@ -234,13 +234,14 @@ export default function OdaComponentYonetimi({
       // Listeden kaldır
       setOdaComponents(prev => prev.filter(c => c.id !== component.id));
 
-      // Sistem logu
+      // Sistem logu - DÜZELTİLDİ
       const oda = odalar.find(o => o.id === component.oda_id);
-      await supabase.from('sistem_loglari').insert([{
-        islem_turu: 'ODA_COMPONENT_SILINDI',
-        detay: `${component.component_adi} → ${oda?.oda_adi} component'i silindi`,
-        ip_adresi: '127.0.0.1'
-      }]);
+      await (supabase as any).from('hareket_loglari').insert([{
+        hareket_tipi: 'ODA_COMPONENT_SILINDI',
+        islem_detay: `${component.component_adi} → ${oda?.oda_adi} component'i silindi`,
+        ip_adresi: '127.0.0.1',
+        tarih: new Date().toISOString()
+      }] as any);
 
       onComponentDegisti?.();
 
@@ -274,7 +275,7 @@ export default function OdaComponentYonetimi({
     toplam: odaComponents.length,
     aktif: odaComponents.filter(c => c.aktif).length,
     yoneticiGorebilir: odaComponents.filter(c => c.yonetici_gorebilir).length,
-    farkliOda: [...new Set(odaComponents.map(c => c.oda_id))].length
+    farkliOda: Array.from(new Set(odaComponents.map(c => c.oda_id))).length
   };
 
   if (loading && odaComponents.length === 0) {
@@ -338,7 +339,9 @@ export default function OdaComponentYonetimi({
           <div className="flex flex-wrap gap-2">
             <select
               value={selectedOdaId}
-              onChange={(e) => setSelectedOdaId(e.target.value)}
+              onChange={(e) => setSelectedOdaId(
+                e.target.value === 'all' ? 'all' : parseInt(e.target.value)
+              )}
               className="px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
             >
               <option value="all">Tüm Odalar</option>
