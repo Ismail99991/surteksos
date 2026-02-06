@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
+import KartelaSearchModal from '@/components/kartela/KartelaSearchModal'
 
 // Supabase client
 const supabase = createClient()
@@ -260,7 +261,7 @@ export default function RoomPage() {
               <p className="text-gray-600 mb-6 text-sm">
                 Kartela numarası, müşteri adı veya barkod ile arama yapın
               </p>
-              <KartelaSearch 
+              <KartelaSearchModal
                 currentRoom={roomData.oda_kodu} 
                 currentUserId={userData.id} 
               />
