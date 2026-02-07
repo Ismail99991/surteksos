@@ -11,10 +11,13 @@ type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
     hex_kodu: string | null;
   };
   hucreler?: {
+    id: number;
     hucre_kodu: string;
     hucre_adi: string;
-    kapasite: number;
-    mevcut_kartela_sayisi: number;
+    kapasite: number | null;
+    mevcut_kartela_sayisi: number | null;
+    raf_id: number | null;
+    aktif: boolean | null;
   };
 };
 

@@ -476,6 +476,10 @@ export interface Database {
           renk_no_baslangic: number
           renk_no_bitis: number
           oda_id: number | null
+          dolap_id: number | null
+          hucre_id: number | null
+          kapasite: number | null
+          mevcut_kartela_sayisi: number | null
           aktif: boolean | null
           olusturulma_tarihi: string | null
         }
@@ -486,6 +490,10 @@ export interface Database {
           renk_no_baslangic: number
           renk_no_bitis: number
           oda_id?: number | null
+          dolap_id?: number | null
+          hucre_id?: number | null
+          kapasite?: number | null
+          mevcut_kartela_sayisi?: number | null
           aktif?: boolean | null
           olusturulma_tarihi?: string | null
         }
@@ -496,6 +504,10 @@ export interface Database {
           renk_no_baslangic?: number
           renk_no_bitis?: number
           oda_id?: number | null
+          dolap_id?: number | null
+          hucre_id?: number | null
+          kapasite?: number | null
+          mevcut_kartela_sayisi?: number | null
           aktif?: boolean | null
           olusturulma_tarihi?: string | null
         }
@@ -573,6 +585,67 @@ export interface Database {
         }
         Relationships: []
       }
+      dolaplar: {
+        Row: {
+          oda_id: number
+          id: number
+          dolap_kodu: string
+          dolap_adi: string
+          raf_sayisi: number | null
+          hucre_sayisi_raf: number | null
+          kapasite_hucre: number | null
+          toplam_hucre: number | null
+          toplam_kapasite: number | null
+          mevcut_kartela_sayisi: number | null
+          doluluk_orani: number | null
+          aktif: boolean | null
+          qr_kodu: string | null
+          aciklama: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          dolap_kodu: string
+          dolap_adi: string
+          raf_sayisi?: number | null
+          hucre_sayisi_raf?: number | null
+          kapasite_hucre?: number | null
+          toplam_hucre?: number | null
+          toplam_kapasite?: number | null
+          mevcut_kartela_sayisi?: number | null
+          doluluk_orani?: number | null
+          aktif?: boolean | null
+          qr_kodu?: string | null
+          aciklama?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          dolap_kodu?: string
+          dolap_adi?: string
+          raf_sayisi?: number | null
+          hucre_sayisi_raf?: number | null
+          kapasite_hucre?: number | null
+          toplam_hucre?: number | null
+          toplam_kapasite?: number | null
+          mevcut_kartela_sayisi?: number | null
+          doluluk_orani?: number | null
+          aktif?: boolean | null
+          qr_kodu?: string | null
+          aciklama?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [{
+          foreignKeyName: "dolaplar_oda_id_fkey"
+          columns: ["oda_id"]
+          referencedRelation: "odalar"
+          referencedColumns: ["id"]
+        }
+      ] 
+    }
     }
     Views: {
       [_ in never]: never

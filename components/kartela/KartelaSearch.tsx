@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, Building, User, Eye, X, MapPin, BarChart3, Package } from 'lucide-react';
+import { Search, Filter, Building, User, Eye, X, MapPin, BarChart3, Package, Layers, Home, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import KartelaDetay from './KartelaDetay';
 import type { Database } from '@/types/supabase';
-
 
 type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
   renk_masalari?: {
@@ -13,10 +12,30 @@ type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
     hex_kodu: string | null;
   };
   hucreler?: {
+    id: number;
     hucre_kodu: string;
     hucre_adi: string;
-    kapasite: number;
-    mevcut_kartela_sayisi: number;
+    kapasite: number | null;
+    mevcut_kartela_sayisi: number | null;
+    raf_id: number | null;
+    aktif: boolean | null;
+  };
+  // YENİ: Hücre → Raf → Dolap → Oda hiyerarşisi
+  hucre_raflar?: {
+    raf_kodu: string;
+    raf_adi: string;
+    dolap_id: number | null;
+  };
+  hucre_raflar_dolaplar?: {
+    dolap_kodu: string;
+    dolap_adi: string;
+    oda_id: number | null;
+  };
+  hucre_raflar_dolaplar_odalar?: {
+    oda_kodu: string;
+    oda_adi: string;
+    kat: string | null;
+    bina: string | null;
   };
 };
 
@@ -26,9 +45,10 @@ interface KartelaSearchProps {
 }
 
 export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSearchProps) {
-  console.log('🔵 KartelaSearch RENDER OLUYOR')
-  console.log('🔵 currentRoom:', currentRoom)
-  console.log('🔵 currentUserId:', currentUserId)
+  console.log('🔵 KartelaSearch RENDER OLUYOR');
+  console.log('🔵 currentRoom:', currentRoom);
+  console.log('🔵 currentUserId:', currentUserId);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDurum, setFilterDurum] = useState<string>('');
   const [sonuclar, setSonuclar] = useState<Kartela[]>([]);
@@ -157,6 +177,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     let data: Kartela[] | null = null;
     
     try {
+      // GELİŞTİRİLMİŞ SORGU: Hücre → Raf → Dolap → Oda hiyerarşisi
       let query = supabase
         .from('kartelalar')
         .select(`
@@ -166,10 +187,41 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             hex_kodu
           ),
           hucreler!left (
+            id,
             hucre_kodu,
             hucre_adi,
             kapasite,
-            mevcut_kartela_sayisi
+            mevcut_kartela_sayisi,
+            raf_id,
+            aktif
+          ),
+          hucreler!left (
+            raflar!inner (
+              raf_kodu,
+              raf_adi,
+              dolap_id
+            )
+          ),
+          hucreler!left (
+            raflar!inner (
+              dolaplar!inner (
+                dolap_kodu,
+                dolap_adi,
+                oda_id
+              )
+            )
+          ),
+          hucreler!left (
+            raflar!inner (
+              dolaplar!inner (
+                odalar!inner (
+                  oda_kodu,
+                  oda_adi,
+                  kat,
+                  bina
+                )
+              )
+            )
           )
         `)
         .eq('silindi', false)
@@ -180,7 +232,6 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
       if (searchQuery.trim()) {
         const queryLower = searchQuery.toLowerCase();
         
-        // Eğer sadece sayısal bir kod ise (örn: 1737)
         if (/^\d+$/.test(searchQuery)) {
           query = query.or(`renk_kodu.ilike.%${searchQuery}%,renk_kodu.ilike.%.${searchQuery}.%`);
         } else {
@@ -231,6 +282,84 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     } finally {
       setLoading(false);
     }
+  };
+
+  // Hücre konum bilgisini render et
+  const renderHucreKonumu = (kartela: Kartela) => {
+    if (!kartela.hucreler) {
+      return (
+        <div className="flex items-center text-gray-400">
+          <MapPin className="h-4 w-4 mr-2" />
+          <span className="text-sm">📍 Hücreye yerleştirilmemiş</span>
+        </div>
+      );
+    }
+
+    const hucre = kartela.hucreler;
+    const raf = kartela.hucre_raflar;
+    const dolap = kartela.hucre_raflar_dolaplar;
+    const oda = kartela.hucre_raflar_dolaplar_odalar;
+
+    return (
+      <div className="space-y-2">
+        {/* Hiyerarşi Gösterimi */}
+        <div className="flex items-center text-sm text-gray-600">
+          <Home className="h-3 w-3 mr-1" />
+          {oda ? (
+            <span className="font-medium">{oda.oda_kodu} • {oda.oda_adi}</span>
+          ) : (
+            <span>Oda bilgisi yok</span>
+          )}
+        </div>
+        
+        <div className="flex items-center text-sm">
+          <ChevronRight className="h-3 w-3 mr-1 text-gray-400" />
+          <Package className="h-3 w-3 mr-2 text-blue-500" />
+          {dolap ? (
+            <span className="font-medium">{dolap.dolap_kodu} • {dolap.dolap_adi}</span>
+          ) : (
+            <span className="text-gray-500">Dolap bilgisi yok</span>
+          )}
+        </div>
+        
+        <div className="flex items-center text-sm">
+          <ChevronRight className="h-3 w-3 mr-1 text-gray-400" />
+          <Layers className="h-3 w-3 mr-2 text-green-500" />
+          {raf ? (
+            <span className="font-medium">{raf.raf_kodu} • {raf.raf_adi}</span>
+          ) : (
+            <span className="text-gray-500">Raf bilgisi yok</span>
+          )}
+        </div>
+        
+        <div className="flex items-center text-sm">
+          <ChevronRight className="h-3 w-3 mr-1 text-gray-400" />
+          <MapPin className="h-3 w-3 mr-2 text-purple-500" />
+          <span className="font-medium">{hucre.hucre_kodu} • {hucre.hucre_adi}</span>
+          <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+            {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 0}
+          </span>
+        </div>
+        
+        {/* Hücre Durumu */}
+        <div className="mt-1">
+          {!hucre.aktif ? (
+            <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
+              ⚠️ Hücre Pasif
+            </span>
+          ) : hucre.kapasite && hucre.mevcut_kartela_sayisi && 
+             hucre.mevcut_kartela_sayisi >= hucre.kapasite ? (
+            <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
+              🔴 Dolu
+            </span>
+          ) : (
+            <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+              ✅ Uygun
+            </span>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -397,33 +526,6 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
           </button>
         </div>
 
-        {/* Format Bilgisi */}
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="text-blue-600">🎯</div>
-            <p className="text-sm text-blue-800 font-medium">Arama Örnekleri:</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-            <div className="bg-white p-3 rounded border">
-              <div className="font-mono text-gray-900">23011737.1</div>
-              <div className="text-green-600 text-xs mt-1">Tam renk kodu</div>
-            </div>
-            <div className="bg-white p-3 rounded border">
-              <div className="font-mono text-gray-900">1737</div>
-              <div className="text-green-600 text-xs mt-1">Kısmi renk kodu</div>
-            </div>
-            <div className="bg-white p-3 rounded border">
-              <div className="font-mono text-gray-900">KIRMIZI</div>
-              <div className="text-green-600 text-xs mt-1">Renk adı ile</div>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-blue-200">
-            <p className="text-xs text-blue-700">
-              💡 Boş arama yaparsanız tüm kartelaları görüntüleyebilirsiniz.
-            </p>
-          </div>
-        </div>
-
         {/* Yükleme */}
         {loading && (
           <div className="text-center py-12">
@@ -496,31 +598,21 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                       )}
                     </div>
                     
-                    <div className="space-y-2 text-sm">
-                      {kartela.hucreler ? (
-                        <div className="flex items-center text-gray-600">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          <div>
-                            <div className="font-medium">{kartela.hucreler.hucre_kodu}</div>
-                            <div className="text-xs text-gray-500">
-                              {kartela.hucreler.mevcut_kartela_sayisi}/{kartela.hucreler.kapasite} kartela
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-gray-400 text-sm">
-                          📍 Hücreye yerleştirilmemiş
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500 text-xs">
-                          📅 {formatTarih(kartela.olusturulma_tarihi || '')}
-                        </span>
-                        <span className="text-blue-600 font-medium text-sm">
-                          Detay →
-                        </span>
+                    {/* HÜCRE KONUMU BÖLÜMÜ */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="text-xs text-gray-500 font-medium mb-2">
+                        📍 KONUM BİLGİSİ
                       </div>
+                      {renderHucreKonumu(kartela)}
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                      <span className="text-gray-500 text-xs">
+                        📅 {formatTarih(kartela.olusturulma_tarihi || '')}
+                      </span>
+                      <span className="text-blue-600 font-medium text-sm">
+                        Detay →
+                      </span>
                     </div>
                   </div>
                 );
