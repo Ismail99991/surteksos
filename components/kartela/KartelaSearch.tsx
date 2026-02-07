@@ -20,23 +20,6 @@ type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
     raf_id: number | null;
     aktif: boolean | null;
   };
-  // YENİ: Hücre → Raf → Dolap → Oda hiyerarşisi
-  hucre_raflar?: {
-    raf_kodu: string;
-    raf_adi: string;
-    dolap_id: number | null;
-  };
-  hucre_raflar_dolaplar?: {
-    dolap_kodu: string;
-    dolap_adi: string;
-    oda_id: number | null;
-  };
-  hucre_raflar_dolaplar_odalar?: {
-    oda_kodu: string;
-    oda_adi: string;
-    kat: string | null;
-    bina: string | null;
-  };
 };
 
 interface KartelaSearchProps {
@@ -174,15 +157,14 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
   const handleSearch = async () => {
     setLoading(true);
-    let data: Kartela[] | null = null;
     
     try {
-      // GELİŞTİRİLMİŞ SORGU: Hücre → Raf → Dolap → Oda hiyerarşisi
+      // DÜZELTİLMİŞ SORGU: Sadece 1 kez hucreler!
       let query = supabase
         .from('kartelalar')
         .select(`
           *,
-          renk_masalari!inner (
+          renk_masalari!left (
             pantone_kodu,
             hex_kodu
           ),
@@ -194,47 +176,27 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             mevcut_kartela_sayisi,
             raf_id,
             aktif
-          ),
-          hucreler!left (
-            raflar!inner (
-              raf_kodu,
-              raf_adi,
-              dolap_id
-            )
-          ),
-          hucreler!left (
-            raflar!inner (
-              dolaplar!inner (
-                dolap_kodu,
-                dolap_adi,
-                oda_id
-              )
-            )
-          ),
-          hucreler!left (
-            raflar!inner (
-              dolaplar!inner (
-                odalar!inner (
-                  oda_kodu,
-                  oda_adi,
-                  kat,
-                  bina
-                )
-              )
-            )
           )
         `)
         .eq('silindi', false)
         .order('olusturulma_tarihi', { ascending: false })
         .limit(50);
 
-      // Arama sorgusu
+      // Arama sorgusu - SON 4 HANE DESTEĞİ
       if (searchQuery.trim()) {
         const queryLower = searchQuery.toLowerCase();
         
-        if (/^\d+$/.test(searchQuery)) {
-          query = query.or(`renk_kodu.ilike.%${searchQuery}%,renk_kodu.ilike.%.${searchQuery}.%`);
-        } else {
+        // EĞER 4 HANELİ SAYI İSE (örn: 1737)
+        if (/^\d{4}$/.test(searchQuery)) {
+          query = query.or(`
+            renk_kodu.ilike.%${searchQuery}%,
+            renk_kodu.ilike.%.${searchQuery}.%,
+            renk_kodu.eq.${searchQuery},
+            kartela_no.ilike.%${searchQuery}%
+          `);
+        } 
+        // DİĞER ARAMALAR
+        else {
           query = query.or(`
             renk_kodu.ilike.%${queryLower}%,
             renk_adi.ilike.%${queryLower}%,
@@ -267,7 +229,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         throw error;
       }
 
-      setSonuclar((data || [])as any);
+      setSonuclar((data || []) as unknown as Kartela[]);
       
       console.log(`[${currentRoom}] Arama:`, {
         arama: searchQuery,
@@ -277,7 +239,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
     } catch (error) {
       console.error('Arama hatası:', error);
-      setSonuclar((data || []) as any);
+      setSonuclar([]);
       alert('Arama sırasında hata oluştu!');
     } finally {
       setLoading(false);
@@ -296,44 +258,10 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     }
 
     const hucre = kartela.hucreler;
-    const raf = kartela.hucre_raflar;
-    const dolap = kartela.hucre_raflar_dolaplar;
-    const oda = kartela.hucre_raflar_dolaplar_odalar;
 
     return (
       <div className="space-y-2">
-        {/* Hiyerarşi Gösterimi */}
-        <div className="flex items-center text-sm text-gray-600">
-          <Home className="h-3 w-3 mr-1" />
-          {oda ? (
-            <span className="font-medium">{oda.oda_kodu} • {oda.oda_adi}</span>
-          ) : (
-            <span>Oda bilgisi yok</span>
-          )}
-        </div>
-        
         <div className="flex items-center text-sm">
-          <ChevronRight className="h-3 w-3 mr-1 text-gray-400" />
-          <Package className="h-3 w-3 mr-2 text-blue-500" />
-          {dolap ? (
-            <span className="font-medium">{dolap.dolap_kodu} • {dolap.dolap_adi}</span>
-          ) : (
-            <span className="text-gray-500">Dolap bilgisi yok</span>
-          )}
-        </div>
-        
-        <div className="flex items-center text-sm">
-          <ChevronRight className="h-3 w-3 mr-1 text-gray-400" />
-          <Layers className="h-3 w-3 mr-2 text-green-500" />
-          {raf ? (
-            <span className="font-medium">{raf.raf_kodu} • {raf.raf_adi}</span>
-          ) : (
-            <span className="text-gray-500">Raf bilgisi yok</span>
-          )}
-        </div>
-        
-        <div className="flex items-center text-sm">
-          <ChevronRight className="h-3 w-3 mr-1 text-gray-400" />
           <MapPin className="h-3 w-3 mr-2 text-purple-500" />
           <span className="font-medium">{hucre.hucre_kodu} • {hucre.hucre_adi}</span>
           <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
