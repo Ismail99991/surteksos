@@ -116,24 +116,26 @@ export default function KartelaTransfer({
         `)
         .or(`kartela_no.eq.${kartelaKodu},renk_kodu.ilike.%${kartelaKodu}%`)
         .eq('silindi', false)
-        .single();
+        .limit(1); // ⬅️ DEĞİŞTİ: .single() → .limit(1)
 
       if (error) throw error;
       
-      if (!data) {
+      if (!data || data.length === 0) { // ⬅️ DEĞİŞTİ: data kontrolü
         throw new Error('Kartela bulunamadı!');
       }
 
+      const kartelaData = data[0]; // ⬅️ EKLE: İlk sonucu al
+
       // Kartela kontrolü
-      if (data.durum === 'KULLANIM_DISI') {
+      if (kartelaData.durum === 'KULLANIM_DISI') {
         throw new Error('Bu kartela kullanım dışı!');
       }
 
-      if (data.durum === 'KARTELA_ARSIV') {
+      if (kartelaData.durum === 'KARTELA_ARSIV') {
         throw new Error('Bu kartela arşivde!');
       }
 
-      setKartela(data as any);
+      setKartela(kartelaData as any);
       setCurrentStep('hucre');
       
     } catch (error: any) {
@@ -157,17 +159,11 @@ export default function KartelaTransfer({
           raflar!left (
             raf_kodu,
             raf_adi,
-            dolap_id
-          ),
-          raflar!left (
+            dolap_id,
             dolaplar!left (
               dolap_kodu,
               dolap_adi,
-              oda_id
-            )
-          ),
-          raflar!left (
-            dolaplar!left (
+              oda_id,
               odalar!left (
                 oda_kodu,
                 oda_adi,
@@ -178,30 +174,32 @@ export default function KartelaTransfer({
           )
         `)
         .eq('hucre_kodu', hucreKodu)
-        .single();
+        .limit(1); // ⬅️ DEĞİŞTİ: .single() → .limit(1)
 
       if (error) throw error;
       
-      if (!data) {
+      if (!data || data.length === 0) { // ⬅️ DEĞİŞTİ: data kontrolü
         throw new Error('Hücre bulunamadı!');
       }
 
+      const hucreData = data[0]; // ⬅️ EKLE: İlk sonucu al
+
       // Hücre kontrolü
-      if (!data.aktif) {
+      if (!hucreData.aktif) {
         throw new Error('Bu hücre pasif durumda!');
       }
 
-      if (data.kapasite && data.mevcut_kartela_sayisi && 
-          data.mevcut_kartela_sayisi >= data.kapasite) {
+      if (hucreData.kapasite && hucreData.mevcut_kartela_sayisi && 
+          hucreData.mevcut_kartela_sayisi >= hucreData.kapasite) {
         throw new Error('Bu hücre dolu!');
       }
 
       // Eğer kartela zaten bu hücredeyse
-      if (kartela?.hucre_id === data.id) {
+      if (kartela?.hucre_id === hucreData.id) {
         throw new Error('Kartela zaten bu hücrede!');
       }
 
-      setHucre(data as any);
+      setHucre(hucreData as any);
       setCurrentStep('confirm');
       
     } catch (error: any) {
