@@ -98,15 +98,15 @@ export default function KartelaTransfer({
             aktif
           ),
           hucreler!left (
-            raflar!inner (
+            raflar!left (
               raf_kodu,
               raf_adi,
               dolap_id
             )
           ),
           hucreler!left (
-            raflar!inner (
-              dolaplar!inner (
+            raflar!left (
+              dolaplar!left (
                 dolap_kodu,
                 dolap_adi,
                 oda_id
@@ -114,9 +114,9 @@ export default function KartelaTransfer({
             )
           ),
           hucreler!left (
-            raflar!inner (
-              dolaplar!inner (
-                odalar!inner (
+            raflar!left (
+              dolaplar!left (
+                odalar!left (
                   oda_kodu,
                   oda_adi,
                   kat,
@@ -172,15 +172,15 @@ export default function KartelaTransfer({
             dolap_id
           ),
           raflar!left (
-            dolaplar!inner (
+            dolaplar!left (
               dolap_kodu,
               dolap_adi,
               oda_id
             )
           ),
           raflar!left (
-            dolaplar!inner (
-              odalar!inner (
+            dolaplar!left (
+              odalar!left (
                 oda_kodu,
                 oda_adi,
                 kat,
