@@ -96,6 +96,22 @@ export default function KartelaTransfer({
             mevcut_kartela_sayisi,
             raf_id,
             aktif
+            raflar!left (
+              raf_kodu,
+              raf_adi,
+              dolap_id
+              dolaplar!left (
+                dolap_kodu,
+                dolap_adi,
+                oda_id
+                odalar!left (
+                  oda_kodu,
+                  oda_adi,
+                  kat,
+                  bina
+                )
+              )
+            )
           ),
           hucreler!left (
             raflar!left (
