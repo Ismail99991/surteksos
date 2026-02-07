@@ -155,11 +155,30 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     }
   };
 
+  // Son 4 hane kontrolü için yardımcı fonksiyon
+  const getLast4Digits = (text: string): string | null => {
+    // Sadece sayısal olan kısmı al
+    const numbersOnly = text.replace(/[^\d]/g, '');
+    
+    if (numbersOnly.length >= 4) {
+      // Son 4 haneyi al
+      return numbersOnly.slice(-4);
+    }
+    
+    return null;
+  };
+
+  // Renk kodu formatı kontrolü için yardımcı fonksiyon
+  const isRenkKoduFormat = (text: string): boolean => {
+    // 23011737.1 gibi formatları kontrol et
+    const pattern = /^\d{8}\.\d+$/;
+    return pattern.test(text);
+  };
+
   const handleSearch = async () => {
     setLoading(true);
     
     try {
-      // DÜZELTİLMİŞ SORGU: Sadece 1 kez hucreler!
       let query = supabase
         .from('kartelalar')
         .select(`
@@ -182,28 +201,35 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         .order('olusturulma_tarihi', { ascending: false })
         .limit(50);
 
-      // Arama sorgusu - SON 4 HANE DESTEĞİ
+      // Arama sorgusu - GÜNCELLENDİ (son 4 hane desteği eklendi)
       if (searchQuery.trim()) {
         const queryLower = searchQuery.toLowerCase();
         
-        // EĞER 4 HANELİ SAYI İSE (örn: 1737)
+        // SON 4 HANE ARAMA: Kullanıcı sadece 4 hane girdiyse (örn: 1737)
         if (/^\d{4}$/.test(searchQuery)) {
-          query = query.or(`
-            renk_kodu.ilike.%${searchQuery}%,
-            renk_kodu.ilike.%.${searchQuery}.%,
-            renk_kodu.eq.${searchQuery},
-            kartela_no.ilike.%${searchQuery}%
-          `);
+          const last4Digits = searchQuery;
+          query = query.or(`renk_kodu.ilike.%${last4Digits}%,renk_kodu.ilike.%.${last4Digits}.%,renk_kodu.eq.${last4Digits},kartela_no.ilike.%${last4Digits}%`);
         } 
-        // DİĞER ARAMALAR
+        // TAM RENK KODU ARAMA (örn: 23011737.1)
+        else if (isRenkKoduFormat(searchQuery)) {
+          // Tam kod için arama
+          query = query.or(`renk_kodu.ilike.%${queryLower}%,renk_kodu.eq.${queryLower},kartela_no.ilike.%${queryLower}%`);
+          
+          // Ayrıca son 4 haneyi de kontrol et (23011737.1 için 1737'yi ara)
+          const last4Digits = getLast4Digits(queryLower);
+          if (last4Digits) {
+            query = query.or(`renk_kodu.ilike.%${last4Digits}%,renk_kodu.ilike.%.${last4Digits}.%,renk_kodu.eq.${last4Digits},kartela_no.ilike.%${last4Digits}%`);
+          }
+        }
+        // DİĞER ARAMALAR (genel arama)
         else {
-          query = query.or(`
-            renk_kodu.ilike.%${queryLower}%,
-            renk_adi.ilike.%${queryLower}%,
-            kartela_no.ilike.%${queryLower}%,
-            musteri_adi.ilike.%${queryLower}%,
-            proje_kodu.ilike.%${queryLower}%
-          `);
+          query = query.or(`renk_kodu.ilike.%${queryLower}%,renk_adi.ilike.%${queryLower}%,kartela_no.ilike.%${queryLower}%,musteri_adi.ilike.%${queryLower}%,proje_kodu.ilike.%${queryLower}%`);
+          
+          // Eğer arama terimi sayısal bir içeriğe sahipse, son 4 haneyi de ara
+          const last4Digits = getLast4Digits(queryLower);
+          if (last4Digits && last4Digits !== queryLower) {
+            query = query.or(`renk_kodu.ilike.%${last4Digits}%,renk_kodu.ilike.%.${last4Digits}.%,renk_kodu.eq.${last4Digits},kartela_no.ilike.%${last4Digits}%`);
+          }
         }
       }
 
@@ -234,7 +260,8 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
       console.log(`[${currentRoom}] Arama:`, {
         arama: searchQuery,
         filtredurum: filterDurum,
-        bulunan: data?.length || 0
+        bulunan: data?.length || 0,
+        son4hane: getLast4Digits(searchQuery) || 'yok'
       });
 
     } catch (error) {
@@ -411,13 +438,21 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               onKeyPress={handleKeyPress}
               placeholder={
                 currentRoom === 'AMIR_ODASI' 
-                  ? "Renk kodu, kartela no, renk adı veya müşteri ara..."
+                  ? "Renk kodu (örn: 1737, 23011737.1), kartela no, renk adı ara..."
                   : currentRoom === 'KARTELA_ODASI'
-                  ? "Kartela barkodu taratın veya renk kodu girin (örn: 1737)"
-                  : "Renk kodu (1737), renk adı veya kartela no girin"
+                  ? "Son 4 hane (1737) veya tam renk kodu (23011737.1) girin"
+                  : "Renk kodu (1737), tam renk kodu (23011737.1) veya renk adı girin"
               }
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-800"
             />
+            {/* Arama İpucu */}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {searchQuery.length === 4 && /^\d{4}$/.test(searchQuery) && (
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  🔍 Son 4 hane aranıyor: {searchQuery}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="relative min-w-[180px]">
@@ -454,12 +489,35 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
           </button>
         </div>
 
+        {/* Son 4 Hane Arama Bilgilendirme */}
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800 font-medium">
+            🔍 <strong>Son 4 Hane Arama:</strong> 
+            <span className="ml-2 text-blue-600">
+              "23011737.1" kodunu sadece "1737" yazarak arayabilirsiniz
+            </span>
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
+              Örnek 1: 1737 → 23011737.1 ve 24011737.2'yi bulur
+            </span>
+            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
+              Örnek 2: 23011737.1 → Tam kod araması
+            </span>
+            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
+              Örnek 3: KIRMIZI → Renk adı araması
+            </span>
+          </div>
+        </div>
+
         {/* Yükleme */}
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-14 w-14 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600 font-medium">Supabase'den kartelalar aranıyor...</p>
-            <p className="text-sm text-gray-500 mt-2">{currentRoom} • Gerçek Veritabanı</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {currentRoom} • {searchQuery.length === 4 ? `Son 4 hane: ${searchQuery}` : `Tam kod: ${searchQuery}`}
+            </p>
           </div>
         )}
 
@@ -477,6 +535,11 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               <div className="text-sm text-green-600 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 Supabase • Gerçek Veritabanı
+                {searchQuery.length === 4 && (
+                  <span className="ml-2 text-blue-600">
+                    • Son 4 hane: {searchQuery}
+                  </span>
+                )}
               </div>
             </div>
             
@@ -551,6 +614,11 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               <p className="text-sm text-gray-600">
                 💡 Kartelaya tıklayarak <strong>detay bilgilerini</strong> ve <strong>hareket geçmişini</strong> görüntüleyin.
               </p>
+              {getLast4Digits(searchQuery) && (
+                <p className="text-sm text-blue-600 mt-2">
+                  🔍 <strong>{getLast4Digits(searchQuery)}</strong> son 4 hanesi ile <strong>{sonuclar.length}</strong> kartela bulundu
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -559,7 +627,11 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
           <div className="text-center py-12 text-gray-500">
             <div className="text-5xl mb-6">🔍</div>
             <p className="text-xl font-medium">"{searchQuery}" için sonuç bulunamadı</p>
-            <p className="text-gray-600 mt-2">Farklı bir renk kodu, kartela no veya renk adı deneyin</p>
+            <p className="text-gray-600 mt-2">
+              {searchQuery.length === 4 ? 
+                `${searchQuery} son 4 hanesi ile eşleşen kartela bulunamadı` : 
+                'Farklı bir renk kodu, kartela no veya renk adı deneyin'}
+            </p>
             <div className="mt-6 text-sm text-green-600">
               📍 {currentRoom} • Supabase • Gerçek Veritabanı
             </div>
@@ -577,13 +649,13 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               {currentRoom === 'AMIR_ODASI' 
                 ? 'Kartela analizi için arama yapın' 
                 : currentRoom === 'KARTELA_ODASI'
-                ? 'Kartela barkodu taratın veya renk kodu girin'
+                ? 'Son 4 hane (1737) veya tam renk kodu (23011737.1) girin'
                 : currentRoom === 'LAB_ODASI'
                 ? 'Lab analizi için renk kodu ara'
                 : 'Kartela aramak için renk kodu veya adı yazın'}
             </p>
             <p className="text-gray-600 mt-2">
-              Örnek: "1737", "KIRMIZI" veya "23011737.1"
+              Örnek: "1737" (son 4 hane), "23011737.1" (tam kod) veya "KIRMIZI"
             </p>
             <button
               onClick={() => {

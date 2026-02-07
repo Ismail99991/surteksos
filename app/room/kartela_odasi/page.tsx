@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import RaporAlma from '@/components/rapor/RaporAlma'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
@@ -15,7 +16,7 @@ const supabase = createClient()
 type UserType = Database['public']['Tables']['kullanicilar']['Row']
 type RoomType = Database['public']['Tables']['odalar']['Row']
 
-type ActiveTab = 'search' | 'transfer' | 'dashboard'
+type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor'
 
 export default function KartelaOdasiPage() {
   const router = useRouter()
@@ -284,6 +285,13 @@ export default function KartelaOdasiPage() {
               <ArrowRightLeft className="h-4 w-4" />
               Kartela Transfer (Tam Ekran)
             </button>
+            <button
+              onClick={() => setActiveTab('rapor')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${activeTab === 'rapor' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <Package className="h-4 w-4" />
+              Raporlar
+            </button>
           </div>
         </div>
       </div>
@@ -418,6 +426,17 @@ export default function KartelaOdasiPage() {
           </div>
         )}
       </main>
+
+      {activeTab === 'rapor' && (
+        <div className="bg-white rounded-xl shadow p-1">
+          <div className="p-5">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Raporlar</h2>
+            <RaporAlma 
+            currentOdaId={roomData.id} 
+            currentUserId={userData.id} />
+          </div>
+        </div>
+      )}
       
       <footer className="mt-12 py-6 border-t bg-white">
         <div className="container mx-auto px-4">
