@@ -5,14 +5,12 @@ import {
   Building, 
   KeyRound, 
   Shield,
-  BarChart3,
   TrendingUp,
   Activity,
   HardDrive
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import type { Database } from '@/types/supabase';
 
 const supabase = createClient();
 
@@ -58,7 +56,6 @@ export default function YoneticiIstatistikler({
       setLoading(true);
       setError(null);
 
-      // Paralel olarak tüm verileri çek
       const [
         { count: toplamKullanici },
         { count: aktifKullanici },
@@ -69,32 +66,15 @@ export default function YoneticiIstatistikler({
         { count: bugunLog },
         { count: son24SaatGiris }
       ] = await Promise.all([
-        // Toplam kullanıcı
         supabase.from('kullanicilar').select('*', { count: 'exact', head: true }),
-        
-        // Aktif kullanıcı
         supabase.from('kullanicilar').select('*', { count: 'exact', head: true }).eq('aktif', true),
-        
-        // Sistem yöneticisi
         supabase.from('kullanicilar').select('*', { count: 'exact', head: true }).eq('sistem_yoneticisi', true),
-        
-        // Toplam oda
         supabase.from('odalar').select('*', { count: 'exact', head: true }),
-        
-        // Aktif oda
         supabase.from('odalar').select('*', { count: 'exact', head: true }).eq('aktif', true),
-        
-        // Toplam yetki
         supabase.from('kullanici_yetkileri').select('*', { count: 'exact', head: true }),
-        
-        // Bugünkü loglar
-        supabase.from('sistem_loglari')
-          .select('*', { count: 'exact', head: true })
+        supabase.from('sistem_loglari').select('*', { count: 'exact', head: true })
           .gte('created_at', new Date().toISOString().split('T')[0]),
-        
-        // Son 24 saat giriş
-        supabase.from('sistem_loglari')
-          .select('*', { count: 'exact', head: true })
+        supabase.from('sistem_loglari').select('*', { count: 'exact', head: true })
           .eq('islem_turu', 'GIRIS_BASARILI')
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       ]);
@@ -121,82 +101,85 @@ export default function YoneticiIstatistikler({
     }
   };
 
-  const istatistikKartlari = [
+  const cards = [
     {
-      id: 'kullanicilar',
-      baslik: 'Toplam Kullanıcı',
-      deger: istatistikler.toplamKullanici,
-      ikon: Users,
-      renk: 'blue',
-      altBaslik: `${istatistikler.aktifKullanici} aktif`,
-      trend: istatistikler.aktifKullanici / Math.max(istatistikler.toplamKullanici, 1) * 100
+      title: 'Toplam Kullanıcı',
+      value: istatistikler.toplamKullanici,
+      sub: `${istatistikler.aktifKullanici} aktif`,
+      percent: Math.round((istatistikler.aktifKullanici / Math.max(istatistikler.toplamKullanici, 1)) * 100),
+      icon: Users,
+      color: 'blue'
     },
     {
-      id: 'odalar',
-      baslik: 'Toplam Oda',
-      deger: istatistikler.toplamOda,
-      ikon: Building,
-      renk: 'green',
-      altBaslik: `${istatistikler.aktifOda} aktif`,
-      trend: istatistikler.aktifOda / Math.max(istatistikler.toplamOda, 1) * 100
+      title: 'Toplam Oda',
+      value: istatistikler.toplamOda,
+      sub: `${istatistikler.aktifOda} aktif`,
+      percent: Math.round((istatistikler.aktifOda / Math.max(istatistikler.toplamOda, 1)) * 100),
+      icon: Building,
+      color: 'green'
     },
     {
-      id: 'yetkiler',
-      baslik: 'Yetki Kaydı',
-      deger: istatistikler.toplamYetki,
-      ikon: KeyRound,
-      renk: 'yellow',
-      altBaslik: 'Oda-kullanıcı eşleşmesi',
-      trend: null
+      title: 'Yetki Kaydı',
+      value: istatistikler.toplamYetki,
+      sub: 'Oda-kullanıcı eşleşmesi',
+      percent: 100,
+      icon: KeyRound,
+      color: 'yellow'
     },
     {
-      id: 'loglar',
-      baslik: 'Sistem Logu',
-      deger: istatistikler.bugunLog + istatistikler.son24SaatGiris,
-      ikon: HardDrive,
-      renk: 'red',
-      altBaslik: `${istatistikler.bugunLog} bugün`,
-      trend: null
+      title: 'Sistem Logu',
+      value: istatistikler.bugunLog,
+      sub: `${istatistikler.bugunLog} bugün`,
+      percent: Math.min(istatistikler.bugunLog, 100),
+      icon: HardDrive,
+      color: 'red'
     },
     {
-      id: 'yoneticiler',
-      baslik: 'Sistem Yöneticisi',
-      deger: istatistikler.sistemYoneticisi,
-      ikon: Shield,
-      renk: 'purple',
-      altBaslik: 'Tam yetkili kullanıcı',
-      trend: null
+      title: 'Sistem Yöneticisi',
+      value: istatistikler.sistemYoneticisi,
+      sub: 'Tam yetkili kullanıcı',
+      percent: 100,
+      icon: Shield,
+      color: 'purple'
     },
     {
-      id: 'girisler',
-      baslik: 'Son 24 Saat Giriş',
-      deger: istatistikler.son24SaatGiris,
-      ikon: Activity,
-      renk: 'cyan',
-      altBaslik: 'Başarılı oturum açma',
-      trend: null
+      title: 'Son 24 Saat Giriş',
+      value: istatistikler.son24SaatGiris,
+      sub: 'Başarılı oturum açma',
+      percent: Math.min(istatistikler.son24SaatGiris, 100),
+      icon: Activity,
+      color: 'cyan'
     }
   ];
 
-  const renkSiniflari = {
-    blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', ikonBg: 'bg-blue-500/20', ikonText: 'text-blue-400' },
-    green: { bg: 'bg-green-500/20', text: 'text-green-400', ikonBg: 'bg-green-500/20', ikonText: 'text-green-400' },
-    yellow: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', ikonBg: 'bg-yellow-500/20', ikonText: 'text-yellow-400' },
-    red: { bg: 'bg-red-500/20', text: 'text-red-400', ikonBg: 'bg-red-500/20', ikonText: 'text-red-400' },
-    purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', ikonBg: 'bg-purple-500/20', ikonText: 'text-purple-400' },
-    cyan: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', ikonBg: 'bg-cyan-500/20', ikonText: 'text-cyan-400' }
+  const colorClasses = {
+    blue: 'bg-blue-50 border-blue-100 text-blue-700',
+    green: 'bg-green-50 border-green-100 text-green-700',
+    yellow: 'bg-yellow-50 border-yellow-100 text-yellow-700',
+    red: 'bg-red-50 border-red-100 text-red-700',
+    purple: 'bg-purple-50 border-purple-100 text-purple-700',
+    cyan: 'bg-cyan-50 border-cyan-100 text-cyan-700'
+  };
+
+  const iconColorClasses = {
+    blue: 'bg-blue-100 text-blue-600',
+    green: 'bg-green-100 text-green-600',
+    yellow: 'bg-yellow-100 text-yellow-600',
+    red: 'bg-red-100 text-red-600',
+    purple: 'bg-purple-100 text-purple-600',
+    cyan: 'bg-cyan-100 text-cyan-600'
   };
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 w-full">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-4 animate-pulse">
+          <div key={i} className="bg-gray-100 border border-gray-200 rounded-lg p-4 animate-pulse">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-700 rounded-lg"></div>
+              <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
               <div className="space-y-2">
-                <div className="h-4 bg-gray-700 rounded w-16"></div>
-                <div className="h-6 bg-gray-700 rounded w-8"></div>
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
+                <div className="h-6 bg-gray-200 rounded w-8"></div>
               </div>
             </div>
           </div>
@@ -207,11 +190,11 @@ export default function YoneticiIstatistikler({
 
   if (error) {
     return (
-      <div className="bg-gray-800 border border-red-700 rounded-xl p-6 text-center">
-        <div className="text-red-400 mb-2">⚠️ {error}</div>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="text-red-700">{error}</div>
         <button
           onClick={loadIstatistikler}
-          className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600"
+          className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm"
         >
           Tekrar Dene
         </button>
@@ -220,51 +203,40 @@ export default function YoneticiIstatistikler({
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-      {istatistikKartlari.map((kart) => {
-        const renk = renkSiniflari[kart.renk as keyof typeof renkSiniflari];
-        const Ikon = kart.ikon;
-        
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 w-full">
+      {cards.map((card, i) => {
+        const Icon = card.icon;
+        const colorClass = colorClasses[card.color as keyof typeof colorClasses];
+        const iconColorClass = iconColorClasses[card.color as keyof typeof iconColorClasses];
+
         return (
-          <div 
-            key={kart.id} 
-            className={`${renk.bg} border border-gray-700 rounded-xl p-4 hover:border-gray-600 transition-colors`}
+          <div
+            key={i}
+            className={`${colorClass} border rounded-lg p-4 hover:shadow-sm transition-all`}
           >
-            <div className="flex items-center gap-3">
-              <div className={`p-2 ${renk.ikonBg} rounded-lg`}>
-                <Ikon className={`h-5 w-5 ${renk.ikonText}`} />
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`p-2 ${iconColorClass} rounded-lg`}>
+                <Icon className="w-4 h-4" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-baseline justify-between">
-                  <div className={`text-2xl font-bold ${renk.text}`}>
-                    {kart.deger}
-                  </div>
-                  {kart.trend !== null && (
-                    <div className="flex items-center gap-1 text-xs">
-                      <TrendingUp className="h-3 w-3 text-green-400" />
-                      <span className="text-green-400">{kart.trend.toFixed(0)}%</span>
-                    </div>
-                  )}
-                </div>
-                <div className="text-sm font-medium text-gray-300 mt-1">
-                  {kart.baslik}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {kart.altBaslik}
-                </div>
+              <div className="text-xs text-gray-500">%{card.percent}</div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-2xl font-bold">{card.value}</div>
+              <div className="text-sm font-semibold text-gray-800 truncate">
+                {card.title}
+              </div>
+              <div className="text-xs text-gray-600 truncate">
+                {card.sub}
               </div>
             </div>
-            
-            {kart.trend !== null && (
-              <div className="mt-3">
-                <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${renk.bg}`}
-                    style={{ width: `${Math.min(kart.trend, 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
+
+            <div className="mt-3 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${iconColorClass}`}
+                style={{ width: `${Math.min(card.percent, 100)}%` }}
+              />
+            </div>
           </div>
         );
       })}

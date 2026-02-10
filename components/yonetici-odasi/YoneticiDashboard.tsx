@@ -138,10 +138,10 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
       />
     ),
     loglar: (
-      <div className="p-8 text-center text-gray-500">Loglar yakında...</div>
+      <div className="p-8 text-center text-gray-800">Loglar yakında...</div> // Daha koyu
     ),
     sistem: (
-      <div className="p-8 text-center text-gray-500">Sistem ayarları yakında...</div>
+      <div className="p-8 text-center text-gray-800">Sistem ayarları yakında...</div> // Daha koyu
     ),
     dolaplar: (
       <DolapYonetimi isAdmin={true} />
@@ -177,7 +177,7 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
         <div className="h-full flex flex-col">
           <div className="h-16 flex items-center justify-between px-3 border-b">
             {!sidebarCollapsed && (
-              <div className="flex items-center gap-2 font-bold">
+              <div className="flex items-center gap-2 font-bold text-gray-800">
                 <ShieldCheck className="h-6 w-6 text-blue-600" />
                 Yönetici
               </div>
@@ -208,11 +208,11 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
                     setMobileOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition
-                    ${isActive ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-700'}
+                    ${isActive ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-800'}
                   `}
                 >
                   <Icon className="h-5 w-5" />
-                  {!sidebarCollapsed && <span>{tab.label}</span>}
+                  {!sidebarCollapsed && <span className="font-medium">{tab.label}</span>}
                 </button>
               );
             })}
@@ -220,8 +220,8 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 w-full">
+      {/* Main - TAŞMAYI ÖNLEMEK İÇİN DÜZENLEME */}
+      <main className="flex-1 w-full overflow-x-hidden">
         {/* Top Bar */}
         <div className="h-16 flex items-center justify-between px-4 border-b bg-white">
           <div className="flex items-center gap-2">
@@ -231,7 +231,7 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
             >
               <Menu />
             </button>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-800 font-medium">
               Yönetici Paneli / {activeTab}
             </div>
           </div>
@@ -244,9 +244,30 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 md:p-6 w-full">
-          {tabContents[activeTab]}
+        {/* Content - TAŞMAYI ÖNLEMEK İÇİN DÜZENLEME */}
+        <div className="p-4 md:p-6 w-full overflow-hidden">
+          <div className="max-w-full overflow-x-auto">
+            {tabContents[activeTab]}
+          </div>
+          
+          {/* Footer */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-800 font-medium">
+              © 2024 Depo Yönetim Sistemi • 
+              <span className="mx-2">•</span>
+              <span className={`px-2 py-1 rounded-full text-xs ${
+                sistemDurumu.api === 'online' 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                API: {sistemDurumu.api === 'online' ? 'Çalışıyor' : 'Kapalı'}
+              </span>
+              <span className="mx-2">•</span>
+              Uptime: {sistemDurumu.uptime}
+              <span className="mx-2">•</span>
+              Son yedek: {sistemDurumu.lastBackup}
+            </p>
+          </div>
         </div>
       </main>
     </div>
