@@ -40,12 +40,17 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
   const [selectedOdaId, setSelectedOdaId] = useState<number | 'all'>('all');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   
+  const [renkArama, setRenkArama] = useState('');
+  const [bulunanHucreler, setBulunanHucreler] = useState<HucreType | null>(null);
+
   // MODAL STATE'LERİ
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState<DolapType | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<DolapType | null>(null);
   const [selectedDolap, setSelectedDolap] = useState<DolapType | null>(null);
+
   
+
   // FORMLAR - Tam şemaya uygun
   const [createForm, setCreateForm] = useState({
     dolap_kodu: '',
@@ -144,6 +149,41 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
       }
       
       setKartelalar(data || []);
+    }
+  };
+
+  const extractNumberFromRenkKodu = (renkKodu: string): number | null => {
+    if (!renkKodu) return 0;
+    const beforeDot = renkKodu.split('.')[0];
+    const numbersOnly = beforeDot.replace(/[^0-9]/g, '');
+    return parseInt(numbersOnly) || 0;
+  };
+
+  const handleRenkArama = () => {
+    if (!renkArama.trim()) {
+      toast .error('Lütfen renk kodu girin!');
+      return;
+    }
+
+    const renkNo = extractNumberFromRenkKodu(renkArama);
+    if (renkNo==0) {
+      toast.error('Geçersiz renk kodu formatı!');
+      return;
+    }
+    const hucre = hucreler.find(h =>
+      h.renk_no_baslangic &&
+      h.renk_no_bitis &&
+      renkNo !== null &&
+      renkNo >= h.renk_no_baslangic &&
+      renkNo <= h.renk_no_bitis
+    );
+
+    setBulunanHucreler(hucre || null);
+
+    if (hucre) {
+      toast.success(`Renk  ${renkArama} ${hucre.hucre_kodu} hücresinde bulunuyor!`);
+    } else {
+      toast.error(`Renk ${renkArama} için hücre bulunamadı`);
     }
   };
 
@@ -477,6 +517,26 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
             </div>
           </div>
           
+          <div className="flex 1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-purple-500" />
+              <input
+                type="text"                
+                placeholder="Renk kodu ara (örn: 23011737.1)"
+                value={renkArama}
+                onChange={(e) => setRenkArama(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleRenkArama()}
+                className="w-full pl-10 pr-20 py-3 bg-gray-900 border border-purple-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+              />
+              <button
+                onClick={handleRenkArama}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md text-sm transition-colors"
+              >
+                Ara
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={selectedOdaId}
@@ -508,6 +568,8 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
                 setSearchQuery('');
                 setSelectedOdaId('all');
                 setActiveFilter('all');
+                setRenkArama('');
+                setBulunanHucreler(null);
               }}
               className="px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm transition-colors"
             >
