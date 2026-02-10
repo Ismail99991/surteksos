@@ -11,6 +11,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 import { toast } from 'sonner';
+import DolapDetayModal from './modals/DolapDetayModal';
+import DolapEditModal from '@/components/modals/DolapEditModal';
 
 const supabase = createClient();
 
@@ -20,6 +22,7 @@ type RafType = Database['public']['Tables']['raflar']['Row'];
 type OdaType = Database['public']['Tables']['odalar']['Row'];
 type HucreType = Database['public']['Tables']['hucreler']['Row'];
 type KartelaType = Database['public']['Tables']['kartelalar']['Row'];
+type MusteriType = Database['public']['Tables']['musteriler']['Row'];
 
 interface DolapYonetimiProps {
   isAdmin?: boolean;
@@ -34,7 +37,9 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
   const [kartelalar, setKartelalar] = useState<KartelaType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [showDetayModal, setShowDetayModal] = useState<DolapType | null>(null);
+  const [musteriler, setMusteriler] = useState<MusteriType[]>([]);
+
   // FILTRE STATE'LERİ
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOdaId, setSelectedOdaId] = useState<number | 'all'>('all');
@@ -42,6 +47,7 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
   
   const [renkArama, setRenkArama] = useState('');
   const [bulunanHucreler, setBulunanHucreler] = useState<HucreType | null>(null);
+  
 
   // MODAL STATE'LERİ
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -70,9 +76,10 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
       setError(null);
 
       // Tüm gerekli verileri paralel olarak yükle
-      const [dolaplarRes, odalarRes] = await Promise.all([
+      const [dolaplarRes, odalarRes, musterilerRes] = await Promise.all([
         supabase.from('dolaplar').select('*').order('dolap_kodu'),
-        supabase.from('odalar').select('*').eq('aktif', true).order('oda_adi')
+        supabase.from('odalar').select('*').eq('aktif', true).order('oda_adi'),
+        supabase.from('musteriler').select('*').order('musteri_adi')
       ]);
 
       if (dolaplarRes.error) throw dolaplarRes.error;
@@ -80,6 +87,7 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
 
       setDolaplar(dolaplarRes.data || []);
       setOdalar(odalarRes.data || []);
+      setMusteriler(musterilerRes.data || []);
 
     } catch (error: any) {
       console.error('Veri yükleme hatası:', error);
@@ -648,8 +656,8 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
                     
                     <div className="absolute right-0 top-full mt-1 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                       <button 
-                        onClick={() => handleViewDetails(dolap)}
-                        className="w-full px-4 py-3 text-left text-gray-300 hover:bg-gray-800 flex items-center gap-3 rounded-t-lg"
+                        onClick={() => setShowDetayModal(dolap)}
+                        className="w-full mt-4 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm flex items-center justify-center gap-2"
                       >
                         <Eye className="h-4 w-4" />
                         Detayları Gör
@@ -1074,90 +1082,12 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
 
       {/* DÜZENLE MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white">
-                Dolap Düzenle - {showEditModal.dolap_kodu}
-              </h3>
-              <button
-                onClick={() => setShowEditModal(null)}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5 text-gray-400" />
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const updates = {
-                dolap_adi: (e.target as any).dolap_adi.value,
-                aktif: (e.target as any).aktif.checked,
-                aciklama: (e.target as any).aciklama.value
-              };
-              handleUpdateDolap(showEditModal.id, updates);
-            }} className="space-y-4">
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Dolap Adı</label>
-                <input
-                  type="text"
-                  name="dolap_adi"
-                  defaultValue={showEditModal.dolap_adi || ''}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  required
-                  maxLength={100}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Açıklama</label>
-                <textarea
-                  name="aciklama"
-                  defaultValue={showEditModal.aciklama || ''}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[100px]"
-                  placeholder="Dolap hakkında notlar..."
-                  maxLength={500}
-                />
-              </div>
-              
-              <div className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg">
-                <input
-                  type="checkbox"
-                  name="aktif"
-                  defaultChecked={showEditModal.aktif || false}
-                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 focus:ring-2"
-                />
-                <div>
-                  <label className="text-gray-300 text-sm">Aktif</label>
-                  <p className="text-xs text-gray-500">Dolap kullanımda olsun</p>
-                </div>
-              </div>
-              
-              <div className="text-sm text-gray-400 p-3 bg-gray-900 rounded-lg">
-                <p><strong>Sabit Bilgiler:</strong></p>
-                <p>Kod: <span className="text-white font-mono">{showEditModal.dolap_kodu}</span></p>
-                <p>Raflar: <span className="text-white">{showEditModal.raf_sayisi} × {showEditModal.hucre_sayisi_raf} hücre</span></p>
-                <p>Toplam Kapasite: <span className="text-white">{showEditModal.toplam_kapasite?.toLocaleString('tr-TR')} kartela</span></p>
-              </div>
-              
-              <div className="pt-4 border-t border-gray-700 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(null)}
-                  className="flex-1 px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all"
-                >
-                  Güncelle
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <DolapEditModal 
+          dolap={showEditModal} 
+          odalar={odalar} 
+          onClose={() => setShowEditModal(null)} 
+          onUpdate={handleUpdateDolap}
+        />
       )}
 
       {/* SİLME ONAY MODAL */}
@@ -1234,6 +1164,20 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {showDetayModal && (
+        <DolapDetayModal 
+          dolap={showDetayModal} 
+          odalar={odalar} 
+          musteriler={musteriler}
+          onClose={() => setShowDetayModal(null)} 
+          onEdit={(dolap) => setShowEditModal(dolap)}
+          onDelete={(dolapId) => {
+            const dolapToDelete = dolaplar.find(d => d.id === dolapId);
+            if (dolapToDelete) setShowDeleteConfirm(dolapToDelete);
+          }}
+        />
       )}
 
       {/* FOOTER */}

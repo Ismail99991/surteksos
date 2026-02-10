@@ -112,6 +112,7 @@ export interface Database {
           qr_kodu: string | null
           aktif: boolean | null
           olusturulma_tarihi: string | null
+          musteri_id: number | null
         }
         Insert: {
           id?: number
@@ -125,6 +126,7 @@ export interface Database {
           qr_kodu?: string | null
           aktif?: boolean | null
           olusturulma_tarihi?: string | null
+          musteri_id?: number | null
         }
         Update: {
           id?: number
@@ -138,6 +140,7 @@ export interface Database {
           qr_kodu?: string | null
           aktif?: boolean | null
           olusturulma_tarihi?: string | null
+          musteri_id?: number | null
         }
         Relationships: []
       }
@@ -154,6 +157,7 @@ export interface Database {
           hucre_id: number | null
           hucre_kodu: string | null
           musteri_adi: string | null
+          musteri_id: string | null
           proje_kodu: string | null
           rpt_calismasi: string | null
           toplam_kullanim_sayisi: number | null
@@ -179,6 +183,7 @@ export interface Database {
           hucre_id?: number | null
           hucre_kodu?: string | null
           musteri_adi?: string | null
+          musteri_id?: string | null
           proje_kodu?: string | null
           rpt_calismasi?: string | null
           toplam_kullanim_sayisi?: number | null
@@ -204,6 +209,7 @@ export interface Database {
           hucre_id?: number | null
           hucre_kodu?: string | null
           musteri_adi?: string | null
+          musteri_id?: string | null
           proje_kodu?: string | null
           rpt_calismasi?: string | null
           toplam_kullanim_sayisi?: number | null
@@ -480,6 +486,7 @@ export interface Database {
           hucre_sayisi: number | null
           kapasite: number | null
           mevcut_kartela_sayisi: number | null
+          musteri_id: number | null
           aktif: boolean | null
           olusturulma_tarihi: string | null
         }
@@ -487,6 +494,8 @@ export interface Database {
           id?: number
           raf_kodu: string
           raf_adi: string
+          musteri_adi?: number | null
+          musteri_id?: string | null
           renk_no_baslangic: number
           renk_no_bitis: number
           oda_id?: number | null
@@ -505,6 +514,7 @@ export interface Database {
           renk_no_bitis?: number
           oda_id?: number | null
           dolap_id?: number | null
+          musteri_id?: string | null
           hucre_sayisi?: number | null
           kapasite?: number | null
           mevcut_kartela_sayisi?: number | null
