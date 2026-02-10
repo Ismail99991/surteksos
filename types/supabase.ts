@@ -477,7 +477,7 @@ export interface Database {
           renk_no_bitis: number
           oda_id: number | null
           dolap_id: number | null
-          hucre_id: number | null
+          hucre_sayisi: number | null
           kapasite: number | null
           mevcut_kartela_sayisi: number | null
           aktif: boolean | null
@@ -491,7 +491,7 @@ export interface Database {
           renk_no_bitis: number
           oda_id?: number | null
           dolap_id?: number | null
-          hucre_id?: number | null
+          hucre_sayisi?: number | null
           kapasite?: number | null
           mevcut_kartela_sayisi?: number | null
           aktif?: boolean | null
@@ -505,7 +505,7 @@ export interface Database {
           renk_no_bitis?: number
           oda_id?: number | null
           dolap_id?: number | null
-          hucre_id?: number | null
+          hucre_sayisi?: number | null
           kapasite?: number | null
           mevcut_kartela_sayisi?: number | null
           aktif?: boolean | null
