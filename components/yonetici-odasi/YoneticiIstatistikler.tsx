@@ -1,51 +1,173 @@
 'use client';
 
 import { 
-  Users, 
-  Building, 
-  KeyRound, 
-  Shield,
+  // Lucide ikonları
+  LayoutGrid, 
+  Box,
+  Package,
   TrendingUp,
-  Activity,
-  HardDrive
+  AlertTriangle,
+  Clock,
+  Users,
+  Building2,
+  DoorOpen,
+  Grid2x2,
+  Layers,
+  Archive,
+  FolderOpen,
+  BarChart3,
+  PieChart as PieChartIcon,
+  LineChart,
+  Square,
+  Cuboid,
+  ArchiveRestore,
+  LayoutDashboard
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  PieLabelRenderProps
+} from 'recharts';
+import { format, subDays } from 'date-fns';
+import { tr } from 'date-fns/locale';
 
 const supabase = createClient();
 
-interface Istatistikler {
+// ===========================================
+// TYPESCRIPT INTERFACES
+// ===========================================
+
+interface DepolamaIstatistikleriProps {
+  refreshTrigger?: boolean;
+  onDataLoaded?: (data: DepolamaIstatistikleri) => void;
+}
+
+interface DepolamaIstatistikleri {
+  toplamKartela: number;
+  doluKartela: number;
+  bosKartela: number;
+  dolulukOraniKartela: number;
+  
+  toplamDolap: number;
+  doluDolap: number;
+  bosDolap: number;
+  dolulukOraniDolap: number;
+  
+  toplamRaf: number;
+  doluRaf: number;
+  bosRaf: number;
+  dolulukOraniRaf: number;
+  
+  toplamHücre: number;
+  doluHücre: number;
+  bosHücre: number;
+  dolulukOraniHücre: number;
+  
+  toplamDepolamaBirimi: number;
+  toplamDoluBirim: number;
+  toplamBosBirim: number;
+  genelDolulukOrani: number;
+  
+  son24SaatEklenen: number;
+  son7GunEklenen: number;
+  
+  dolulukTrendi: { tarih: string; oran: number }[];
+  birimDagilimi: BirimDagilim[];
+}
+
+interface BirimDagilim {
+  name: string;
+  dolu: number;
+  bos: number;
+  toplam: number;
+}
+
+interface OzetIstatistikler {
   toplamKullanici: number;
   aktifKullanici: number;
-  sistemYoneticisi: number;
   toplamOda: number;
   aktifOda: number;
-  toplamYetki: number;
-  bugunLog: number;
-  son24SaatGiris: number;
 }
 
-interface YoneticiIstatistiklerProps {
-  onDataLoaded?: (istatistikler: Istatistikler) => void;
-  refreshTrigger?: boolean;
+interface PieDataItem {
+  name: string;
+  value: number;
+  color: string;
 }
 
-export default function YoneticiIstatistikler({ 
-  onDataLoaded,
-  refreshTrigger = false 
-}: YoneticiIstatistiklerProps) {
-  const [istatistikler, setIstatistikler] = useState<Istatistikler>({
-    toplamKullanici: 0,
-    aktifKullanici: 0,
-    sistemYoneticisi: 0,
-    toplamOda: 0,
-    aktifOda: 0,
-    toplamYetki: 0,
-    bugunLog: 0,
-    son24SaatGiris: 0
-  });
+// ===========================================
+// TOOLTIP FORMATTER
+// ===========================================
+
+type TooltipValue = number | string | Array<number | string> | undefined;
+
+const formatTooltipValue = (value: TooltipValue): number => {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  if (Array.isArray(value)) return value.length;
+  return 0;
+};
+
+const barTooltipFormatter = (value: TooltipValue): [string, string] => {
+  const num = formatTooltipValue(value);
+  return [`%${num}`, 'Doluluk Oranı'];
+};
+
+const areaTooltipFormatter = (value: TooltipValue): [string, string] => {
+  const num = formatTooltipValue(value);
+  return [`%${num}`, 'Doluluk'];
+};
+
+const pieTooltipFormatter = (value: TooltipValue): [string, string] => {
+  const num = formatTooltipValue(value);
+  return [`${num}`, 'Adet'];
+};
+
+// ===========================================
+// PIE LABEL RENDERER
+// ===========================================
+
+const renderPieLabel = (props: PieLabelRenderProps) => {
+  const { name, percent } = props;
+  
+  if (typeof name !== 'string' || typeof percent !== 'number') {
+    return '';
+  }
+  
+  const yuzde = (percent * 100).toFixed(0);
+  return `${name} %${yuzde}`;
+};
+
+// ===========================================
+// MAIN COMPONENT
+// ===========================================
+
+export default function DepolamaIstatistikleri({ 
+  refreshTrigger = false,
+  onDataLoaded 
+}: DepolamaIstatistikleriProps) {
+  
+  const [depolama, setDepolama] = useState<DepolamaIstatistikleri | null>(null);
+  const [ozet, setOzet] = useState<OzetIstatistikler | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedView, setSelectedView] = useState<'kartela' | 'dolap' | 'raf' | 'hucre' | 'genel'>('genel');
 
   useEffect(() => {
     loadIstatistikler();
@@ -54,192 +176,537 @@ export default function YoneticiIstatistikler({
   const loadIstatistikler = async () => {
     try {
       setLoading(true);
-      setError(null);
 
+      // Kartela
+      const [
+        { count: toplamKartela },
+        { count: doluKartela }
+      ] = await Promise.all([
+        supabase.from('kartelalar').select('*', { count: 'exact', head: true }),
+        supabase.from('kartelalar').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
+      ]);
+
+      // Dolap
+      const [
+        { count: toplamDolap },
+        { count: doluDolap }
+      ] = await Promise.all([
+        supabase.from('dolaplar').select('*', { count: 'exact', head: true }),
+        supabase.from('dolaplar').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
+      ]);
+
+      // Raf
+      const [
+        { count: toplamRaf },
+        { count: doluRaf }
+      ] = await Promise.all([
+        supabase.from('raflar').select('*', { count: 'exact', head: true }),
+        supabase.from('raflar').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
+      ]);
+
+      // Hücre
+      const [
+        { count: toplamHücre },
+        { count: doluHücre }
+      ] = await Promise.all([
+        supabase.from('hucreler').select('*', { count: 'exact', head: true }),
+        supabase.from('hucreler').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
+      ]);
+
+      // Son eklenenler
+      const now = new Date();
+      const last24h = subDays(now, 1);
+      const last7d = subDays(now, 7);
+
+      const [
+        { count: son24SaatEklenen },
+        { count: son7GunEklenen }
+      ] = await Promise.all([
+        supabase.from('hucreler').select('*', { count: 'exact', head: true })
+          .gte('created_at', last24h.toISOString()),
+        supabase.from('hucreler').select('*', { count: 'exact', head: true })
+          .gte('created_at', last7d.toISOString())
+      ]);
+
+      // Doluluk trendi
+      const dolulukTrendi = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = subDays(now, i);
+        const { count: doluOlanlar } = await supabase
+          .from('hucreler')
+          .select('*', { count: 'exact', head: true })
+          .eq('durum', 'DOLU')
+          .lte('created_at', date.toISOString());
+
+        const { count: toplamOlanlar } = await supabase
+          .from('hucreler')
+          .select('*', { count: 'exact', head: true })
+          .lte('created_at', date.toISOString());
+
+        dolulukTrendi.push({
+          tarih: format(date, 'dd MMM', { locale: tr }),
+          oran: toplamOlanlar && toplamOlanlar > 0 
+            ? Math.round(((doluOlanlar || 0) / toplamOlanlar) * 100) 
+            : 0
+        });
+      }
+
+      // Özet istatistikler
       const [
         { count: toplamKullanici },
         { count: aktifKullanici },
-        { count: sistemYoneticisi },
         { count: toplamOda },
-        { count: aktifOda },
-        { count: toplamYetki },
-        { count: bugunLog },
-        { count: son24SaatGiris }
+        { count: aktifOda }
       ] = await Promise.all([
         supabase.from('kullanicilar').select('*', { count: 'exact', head: true }),
         supabase.from('kullanicilar').select('*', { count: 'exact', head: true }).eq('aktif', true),
-        supabase.from('kullanicilar').select('*', { count: 'exact', head: true }).eq('sistem_yoneticisi', true),
         supabase.from('odalar').select('*', { count: 'exact', head: true }),
-        supabase.from('odalar').select('*', { count: 'exact', head: true }).eq('aktif', true),
-        supabase.from('kullanici_yetkileri').select('*', { count: 'exact', head: true }),
-        supabase.from('sistem_loglari').select('*', { count: 'exact', head: true })
-          .gte('created_at', new Date().toISOString().split('T')[0]),
-        supabase.from('sistem_loglari').select('*', { count: 'exact', head: true })
-          .eq('islem_turu', 'GIRIS_BASARILI')
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        supabase.from('odalar').select('*', { count: 'exact', head: true }).eq('aktif', true)
       ]);
 
-      const yeniIstatistikler: Istatistikler = {
-        toplamKullanici: toplamKullanici || 0,
-        aktifKullanici: aktifKullanici || 0,
-        sistemYoneticisi: sistemYoneticisi || 0,
-        toplamOda: toplamOda || 0,
-        aktifOda: aktifOda || 0,
-        toplamYetki: toplamYetki || 0,
-        bugunLog: bugunLog || 0,
-        son24SaatGiris: son24SaatGiris || 0
+      // Null kontrolü
+      const tKartela = toplamKartela ?? 0;
+      const dKartela = doluKartela ?? 0;
+      const tDolap = toplamDolap ?? 0;
+      const dDolap = doluDolap ?? 0;
+      const tRaf = toplamRaf ?? 0;
+      const dRaf = doluRaf ?? 0;
+      const tHücre = toplamHücre ?? 0;
+      const dHücre = doluHücre ?? 0;
+
+      const toplamDepolamaBirimi = tKartela + tDolap + tRaf + tHücre;
+      const toplamDoluBirim = dKartela + dDolap + dRaf + dHücre;
+
+      const yeniDepolama: DepolamaIstatistikleri = {
+        toplamKartela: tKartela,
+        doluKartela: dKartela,
+        bosKartela: tKartela - dKartela,
+        dolulukOraniKartela: tKartela > 0 ? Math.round((dKartela / tKartela) * 100) : 0,
+        
+        toplamDolap: tDolap,
+        doluDolap: dDolap,
+        bosDolap: tDolap - dDolap,
+        dolulukOraniDolap: tDolap > 0 ? Math.round((dDolap / tDolap) * 100) : 0,
+        
+        toplamRaf: tRaf,
+        doluRaf: dRaf,
+        bosRaf: tRaf - dRaf,
+        dolulukOraniRaf: tRaf > 0 ? Math.round((dRaf / tRaf) * 100) : 0,
+        
+        toplamHücre: tHücre,
+        doluHücre: dHücre,
+        bosHücre: tHücre - dHücre,
+        dolulukOraniHücre: tHücre > 0 ? Math.round((dHücre / tHücre) * 100) : 0,
+        
+        toplamDepolamaBirimi,
+        toplamDoluBirim,
+        toplamBosBirim: toplamDepolamaBirimi - toplamDoluBirim,
+        genelDolulukOrani: toplamDepolamaBirimi > 0 ? Math.round((toplamDoluBirim / toplamDepolamaBirimi) * 100) : 0,
+        
+        son24SaatEklenen: son24SaatEklenen ?? 0,
+        son7GunEklenen: son7GunEklenen ?? 0,
+        
+        dolulukTrendi,
+        
+        birimDagilimi: [
+          { name: 'Kartela', dolu: dKartela, bos: tKartela - dKartela, toplam: tKartela },
+          { name: 'Dolap', dolu: dDolap, bos: tDolap - dDolap, toplam: tDolap },
+          { name: 'Raf', dolu: dRaf, bos: tRaf - dRaf, toplam: tRaf },
+          { name: 'Hücre', dolu: dHücre, bos: tHücre - dHücre, toplam: tHücre }
+        ]
       };
 
-      setIstatistikler(yeniIstatistikler);
-      onDataLoaded?.(yeniIstatistikler);
+      setDepolama(yeniDepolama);
+
+      setOzet({
+        toplamKullanici: toplamKullanici ?? 0,
+        aktifKullanici: aktifKullanici ?? 0,
+        toplamOda: toplamOda ?? 0,
+        aktifOda: aktifOda ?? 0
+      });
+
+      if (onDataLoaded) {
+        onDataLoaded(yeniDepolama);
+      }
 
     } catch (error) {
       console.error('İstatistik yükleme hatası:', error);
-      setError('İstatistikler yüklenemedi');
     } finally {
       setLoading(false);
     }
   };
 
-  const cards = [
-    {
-      title: 'Toplam Kullanıcı',
-      value: istatistikler.toplamKullanici,
-      sub: `${istatistikler.aktifKullanici} aktif`,
-      percent: Math.round((istatistikler.aktifKullanici / Math.max(istatistikler.toplamKullanici, 1)) * 100),
-      icon: Users,
-      color: 'blue'
-    },
-    {
-      title: 'Toplam Oda',
-      value: istatistikler.toplamOda,
-      sub: `${istatistikler.aktifOda} aktif`,
-      percent: Math.round((istatistikler.aktifOda / Math.max(istatistikler.toplamOda, 1)) * 100),
-      icon: Building,
-      color: 'green'
-    },
-    {
-      title: 'Yetki Kaydı',
-      value: istatistikler.toplamYetki,
-      sub: 'Oda-kullanıcı eşleşmesi',
-      percent: 100,
-      icon: KeyRound,
-      color: 'yellow'
-    },
-    {
-      title: 'Sistem Logu',
-      value: istatistikler.bugunLog,
-      sub: `${istatistikler.bugunLog} bugün`,
-      percent: Math.min(istatistikler.bugunLog, 100),
-      icon: HardDrive,
-      color: 'red'
-    },
-    {
-      title: 'Sistem Yöneticisi',
-      value: istatistikler.sistemYoneticisi,
-      sub: 'Tam yetkili kullanıcı',
-      percent: 100,
-      icon: Shield,
-      color: 'purple'
-    },
-    {
-      title: 'Son 24 Saat Giriş',
-      value: istatistikler.son24SaatGiris,
-      sub: 'Başarılı oturum açma',
-      percent: Math.min(istatistikler.son24SaatGiris, 100),
-      icon: Activity,
-      color: 'cyan'
-    }
-  ];
+  const COLORS = {
+    dolu: '#10b981',
+    bos: '#94a3b8',
+    kartela: '#3b82f6',
+    dolap: '#8b5cf6',
+    raf: '#f59e0b',
+    hucre: '#ec4899'
+  } as const;
 
-  const colorClasses = {
-    blue: 'bg-blue-50 border-blue-100 text-blue-700',
-    green: 'bg-green-50 border-green-100 text-green-700',
-    yellow: 'bg-yellow-50 border-yellow-100 text-yellow-700',
-    red: 'bg-red-50 border-red-100 text-red-700',
-    purple: 'bg-purple-50 border-purple-100 text-purple-700',
-    cyan: 'bg-cyan-50 border-cyan-100 text-cyan-700'
+  const getPieData = (): PieDataItem[] => {
+    if (!depolama) return [];
+
+    switch (selectedView) {
+      case 'kartela':
+        return [
+          { name: 'Dolu Kartela', value: depolama.doluKartela, color: COLORS.dolu },
+          { name: 'Boş Kartela', value: depolama.bosKartela, color: COLORS.bos }
+        ];
+      case 'dolap':
+        return [
+          { name: 'Dolu Dolap', value: depolama.doluDolap, color: COLORS.dolu },
+          { name: 'Boş Dolap', value: depolama.bosDolap, color: COLORS.bos }
+        ];
+      case 'raf':
+        return [
+          { name: 'Dolu Raf', value: depolama.doluRaf, color: COLORS.dolu },
+          { name: 'Boş Raf', value: depolama.bosRaf, color: COLORS.bos }
+        ];
+      case 'hucre':
+        return [
+          { name: 'Dolu Hücre', value: depolama.doluHücre, color: COLORS.dolu },
+          { name: 'Boş Hücre', value: depolama.bosHücre, color: COLORS.bos }
+        ];
+      default:
+        return [
+          { name: 'Dolu Birimler', value: depolama.toplamDoluBirim, color: COLORS.dolu },
+          { name: 'Boş Birimler', value: depolama.toplamBosBirim, color: COLORS.bos }
+        ];
+    }
   };
 
-  const iconColorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-    red: 'bg-red-100 text-red-600',
-    purple: 'bg-purple-100 text-purple-600',
-    cyan: 'bg-cyan-100 text-cyan-600'
+  const getDolulukOrani = (): number => {
+    if (!depolama) return 0;
+    
+    switch (selectedView) {
+      case 'kartela': return depolama.dolulukOraniKartela;
+      case 'dolap': return depolama.dolulukOraniDolap;
+      case 'raf': return depolama.dolulukOraniRaf;
+      case 'hucre': return depolama.dolulukOraniHücre;
+      default: return depolama.genelDolulukOrani;
+    }
   };
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 w-full">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="bg-gray-100 border border-gray-200 rounded-lg p-4 animate-pulse">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-16"></div>
-                <div className="h-6 bg-gray-200 rounded w-8"></div>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (!depolama || !ozet) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="text-red-700">{error}</div>
-        <button
-          onClick={loadIstatistikler}
-          className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm"
-        >
-          Tekrar Dene
-        </button>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="text-yellow-700">İstatistik verisi bulunamadı</div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 w-full">
-      {cards.map((card, i) => {
-        const Icon = card.icon;
-        const colorClass = colorClasses[card.color as keyof typeof colorClasses];
-        const iconColorClass = iconColorClasses[card.color as keyof typeof iconColorClasses];
-
-        return (
-          <div
-            key={i}
-            className={`${colorClass} border rounded-lg p-4 hover:shadow-sm transition-all`}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className={`p-2 ${iconColorClass} rounded-lg`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="text-xs text-gray-500">%{card.percent}</div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-2xl font-bold">{card.value}</div>
-              <div className="text-sm font-semibold text-gray-800 truncate">
-                {card.title}
-              </div>
-              <div className="text-xs text-gray-600 truncate">
-                {card.sub}
-              </div>
-            </div>
-
-            <div className="mt-3 h-1 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${iconColorClass}`}
-                style={{ width: `${Math.min(card.percent, 100)}%` }}
-              />
-            </div>
+    <div className="space-y-6">
+      {/* === ÖZET KARTLAR - Lucide İkonlar === */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <Users className="w-4 h-4" />
+            <span className="text-xs">Toplam Kullanıcı</span>
           </div>
-        );
-      })}
+          <div className="text-lg font-bold">{ozet.toplamKullanici}</div>
+          <div className="text-xs text-green-600">{ozet.aktifKullanici} aktif</div>
+        </div>
+        
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <Building2 className="w-4 h-4" />
+            <span className="text-xs">Toplam Oda</span>
+          </div>
+          <div className="text-lg font-bold">{ozet.toplamOda}</div>
+          <div className="text-xs text-green-600">{ozet.aktifOda} aktif</div>
+        </div>
+        
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <Archive className="w-4 h-4" />
+            <span className="text-xs">Depolama Birimi</span>
+          </div>
+          <div className="text-lg font-bold">{depolama.toplamDepolamaBirimi}</div>
+          <div className="text-xs text-blue-600">{depolama.toplamDoluBirim} dolu</div>
+        </div>
+        
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <BarChart3 className="w-4 h-4" />
+            <span className="text-xs">Genel Doluluk</span>
+          </div>
+          <div className="text-lg font-bold">%{depolama.genelDolulukOrani}</div>
+          <div className="text-xs text-orange-600">+{depolama.son24SaatEklenen} bugün</div>
+        </div>
+      </div>
+
+      {/* === BİRİM SEÇİCİ - Lucide İkonlar === */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {[
+          { id: 'genel', label: 'Genel', icon: LayoutDashboard, color: 'blue' },
+          { id: 'kartela', label: 'Kartela', icon: Grid2x2, color: 'blue' },
+          { id: 'dolap', label: 'Dolap', icon: DoorOpen, color: 'purple' },
+          { id: 'raf', label: 'Raf', icon: Layers, color: 'orange' },
+          { id: 'hucre', label: 'Hücre', icon: Square, color: 'pink' }
+        ].map((view) => {
+          const Icon = view.icon;
+          return (
+            <button
+              key={view.id}
+              onClick={() => setSelectedView(view.id as any)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                selectedView === view.id
+                  ? view.id === 'genel' || view.id === 'kartela' ? 'bg-blue-600 text-white'
+                    : view.id === 'dolap' ? 'bg-purple-600 text-white'
+                    : view.id === 'raf' ? 'bg-orange-600 text-white'
+                    : 'bg-pink-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {view.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* === ANA GRAFİKLER === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* 1. DOLULUK DAĞILIMI */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <PieChartIcon className="w-4 h-4 text-gray-700" />
+            <h3 className="text-sm font-semibold text-gray-700">
+              {selectedView === 'genel' ? 'Toplam Doluluk Dağılımı' 
+                : `${selectedView.charAt(0).toUpperCase() + selectedView.slice(1)} Doluluk Dağılımı`}
+            </h3>
+          </div>
+          
+          {getPieData().every(item => item.value === 0) ? (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Henüz veri bulunmuyor
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={getPieData()}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={renderPieLabel}
+                    outerRadius={80}
+                    dataKey="value"
+                  >
+                    {getPieData().map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={pieTooltipFormatter} />
+                </PieChart>
+              </ResponsiveContainer>
+              
+              <div className="mt-4 text-center">
+                <span className="text-2xl font-bold text-gray-800">
+                  %{getDolulukOrani()}
+                </span>
+                <span className="text-sm text-gray-500 ml-2">doluluk oranı</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 2. BİRİM BAZLI DOLULUK */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-4 h-4 text-gray-700" />
+            <h3 className="text-sm font-semibold text-gray-700">
+              Birim Bazlı Doluluk (%)
+            </h3>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart
+              data={depolama.birimDagilimi}
+              layout="vertical"
+              margin={{ left: 50 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" domain={[0, 100]} />
+              <YAxis type="category" dataKey="name" />
+              <Tooltip formatter={barTooltipFormatter} />
+              <Bar 
+                dataKey={(item: BirimDagilim) => 
+                  item.toplam > 0 ? Math.round((item.dolu / item.toplam) * 100) : 0
+                } 
+                radius={[0, 4, 4, 0]}
+              >
+                {depolama.birimDagilimi.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={
+                      entry.name === 'Kartela' ? COLORS.kartela
+                      : entry.name === 'Dolap' ? COLORS.dolap
+                      : entry.name === 'Raf' ? COLORS.raf
+                      : COLORS.hucre
+                    } 
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 3. DOLULUK TRENDİ */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <LineChart className="w-4 h-4 text-gray-700" />
+            <h3 className="text-sm font-semibold text-gray-700">
+              Doluluk Trendi (Son 7 Gün)
+            </h3>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart data={depolama.dolulukTrendi}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="tarih" />
+              <YAxis domain={[0, 100]} />
+              <Tooltip formatter={areaTooltipFormatter} />
+              <Area 
+                type="monotone" 
+                dataKey="oran" 
+                stroke={COLORS.dolu} 
+                fill={COLORS.dolu} 
+                fillOpacity={0.2}
+                name="Doluluk"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 4. BİRİM SAYILARI */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Archive className="w-4 h-4 text-gray-700" />
+            <h3 className="text-sm font-semibold text-gray-700">
+              Toplam Birim Sayıları
+            </h3>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={depolama.birimDagilimi}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="toplam" fill={COLORS.bos} name="Toplam Birim" />
+              <Bar dataKey="dolu" fill={COLORS.dolu} name="Dolu Birim" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* === DETAYLI DOLULUK KARTLARI - Lucide İkonlar === */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Kartela */}
+        <div className={`p-3 rounded-lg border ${
+          selectedView === 'kartela' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+        }`}>
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <Grid2x2 className="w-4 h-4 text-blue-600" />
+            <span className="text-xs font-medium">Kartela</span>
+          </div>
+          <div className="text-lg font-bold">{depolama.toplamKartela}</div>
+          <div className="flex justify-between text-xs mt-1">
+            <span className="text-green-600">{depolama.doluKartela} dolu</span>
+            <span className="text-gray-500">{depolama.bosKartela} boş</span>
+            <span className="font-medium text-blue-600">%{depolama.dolulukOraniKartela}</span>
+          </div>
+        </div>
+        
+        {/* Dolap */}
+        <div className={`p-3 rounded-lg border ${
+          selectedView === 'dolap' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white'
+        }`}>
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <DoorOpen className="w-4 h-4 text-purple-600" />
+            <span className="text-xs font-medium">Dolap</span>
+          </div>
+          <div className="text-lg font-bold">{depolama.toplamDolap}</div>
+          <div className="flex justify-between text-xs mt-1">
+            <span className="text-green-600">{depolama.doluDolap} dolu</span>
+            <span className="text-gray-500">{depolama.bosDolap} boş</span>
+            <span className="font-medium text-purple-600">%{depolama.dolulukOraniDolap}</span>
+          </div>
+        </div>
+        
+        {/* Raf */}
+        <div className={`p-3 rounded-lg border ${
+          selectedView === 'raf' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white'
+        }`}>
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <Layers className="w-4 h-4 text-orange-600" />
+            <span className="text-xs font-medium">Raf</span>
+          </div>
+          <div className="text-lg font-bold">{depolama.toplamRaf}</div>
+          <div className="flex justify-between text-xs mt-1">
+            <span className="text-green-600">{depolama.doluRaf} dolu</span>
+            <span className="text-gray-500">{depolama.bosRaf} boş</span>
+            <span className="font-medium text-orange-600">%{depolama.dolulukOraniRaf}</span>
+          </div>
+        </div>
+        
+        {/* Hücre */}
+        <div className={`p-3 rounded-lg border ${
+          selectedView === 'hucre' ? 'border-pink-500 bg-pink-50' : 'border-gray-200 bg-white'
+        }`}>
+          <div className="flex items-center gap-2 text-gray-600 mb-1">
+            <Square className="w-4 h-4 text-pink-600" />
+            <span className="text-xs font-medium">Hücre</span>
+          </div>
+          <div className="text-lg font-bold">{depolama.toplamHücre}</div>
+          <div className="flex justify-between text-xs mt-1">
+            <span className="text-green-600">{depolama.doluHücre} dolu</span>
+            <span className="text-gray-500">{depolama.bosHücre} boş</span>
+            <span className="font-medium text-pink-600">%{depolama.dolulukOraniHücre}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* === AKTİVİTE ÖZETİ === */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <Clock className="w-4 h-4 text-gray-500" />
+          <span className="text-gray-700">
+            <span className="font-medium">Son 24 Saat:</span> {depolama.son24SaatEklenen} yeni hücre
+          </span>
+          <span className="text-gray-700">
+            <span className="font-medium">Son 7 Gün:</span> {depolama.son7GunEklenen} yeni hücre
+          </span>
+          {depolama.bosHücre > 0 && (
+            <>
+              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              <span className="text-yellow-700">
+                <span className="font-medium">{depolama.bosHücre}</span> boş hücre mevcut
+              </span>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

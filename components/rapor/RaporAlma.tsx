@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 
 type RaporTipi = 'genel' | 'kartela' | 'hucre' | 'transfer' | 'musteri' | 'kullanici'
 
@@ -39,8 +41,8 @@ type RaporFiltreleri = {
 export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProps) {
   const [raporTipi, setRaporTipi] = useState<RaporTipi>('genel')
   const [filtreler, setFiltreler] = useState<RaporFiltreleri>({
-    baslangicTarihi: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 gün önce
-    bitisTarihi: new Date().toISOString().split('T')[0], // bugün
+    baslangicTarihi: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    bitisTarihi: new Date().toISOString().split('T')[0],
     raporTipi: 'genel'
   })
   const [raporVerisi, setRaporVerisi] = useState<any>(null)
@@ -48,7 +50,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
   const [odalar, setOdalar] = useState<any[]>([])
   const [musteriler, setMusteriler] = useState<any[]>([])
 
-  // İlk yüklemede odaları ve müşterileri getir
   useEffect(() => {
     loadInitialData()
   }, [])
@@ -61,6 +62,222 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     
     setOdalar(odalarRes.data || [])
     setMusteriler(musterilerRes.data || [])
+  }
+
+  const formatTarih = (tarih: string): string => {
+    if (!tarih) return ''
+    try {
+      const date = new Date(tarih)
+      return date.toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return tarih
+    }
+  }
+
+  const prepareExcelData = (data: any, reportType: RaporTipi): any[][] => {
+    switch (reportType) {
+      case 'genel':
+        if (!data?.kartelaIstatistikleri) return [['Veri bulunamadı']]
+        
+        const kartelaToplam = Object.values(data.kartelaIstatistikleri)
+          .reduce((a: number, b: unknown) => a + (typeof b === 'number' ? b : 0), 0)
+        
+        const ortalamaDoluluk = data.hucreDoluluk && data.hucreDoluluk.toplamHucre > 0 
+          ? Math.round(data.hucreDoluluk.ortalamaDoluluk / data.hucreDoluluk.toplamHucre)
+          : 0
+        
+        return [
+          ['SURTEKS OS - GENEL İSTATİSTİKLER RAPORU'],
+          [`Rapor Tarihi: ${formatTarih(new Date().toISOString())}`],
+          [`Dönem: ${filtreler.baslangicTarihi} - ${filtreler.bitisTarihi}`],
+          [''],
+          ['KATEGORİ', 'DEĞER'],
+          ['Toplam Kartela Sayısı', kartelaToplam],
+          ['Aktif Kartela', data.kartelaIstatistikleri['AKTIF'] || 0],
+          ['Dolu Kartela', data.kartelaIstatistikleri['DOLU'] || 0],
+          ['Arşiv Kartela', data.kartelaIstatistikleri['KARTELA_ARSIV'] || 0],
+          ['Transfer Sayısı', data.transferSayisi || 0],
+          ['Müşteriye Ait Kartela', data.musteriKartelaSayisi || 0],
+          ['Toplam Hücre Sayısı', data.hucreDoluluk?.toplamHucre || 0],
+          ['Dolu Hücre', data.hucreDoluluk?.doluHucre || 0],
+          ['Boş Hücre', data.hucreDoluluk?.bosHucre || 0],
+          ['Ortalama Doluluk Oranı', `${ortalamaDoluluk}%`],
+          [''],
+          ['KARTELA DURUMLARI'],
+          ...Object.entries(data.kartelaIstatistikleri).map(([key, value]) => [
+            key.replace(/_/g, ' '),
+            value
+          ])
+        ]
+
+      case 'kartela':
+        if (!Array.isArray(data) || data.length === 0) return [['Kartela verisi bulunamadı']]
+        
+        return [
+          ['SURTEKS OS - KARTELA RAPORU'],
+          [`Rapor Tarihi: ${formatTarih(new Date().toISOString())}`],
+          [`Dönem: ${filtreler.baslangicTarihi} - ${filtreler.bitisTarihi}`],
+          [''],
+          ['KARTELA KODU', 'RENK KODU', 'PANTONE', 'MÜŞTERİ', 'DURUM', 'HÜCRE', 'OLUŞTURULMA', 'SON GÜNCELLEME'],
+          ...data.map(item => [
+            item.kartela_kodu || '',
+            item.renk_masalari?.hex_kodu || '',
+            item.renk_masalari?.pantone_kodu || item.renk_kodu || '',
+            item.musteri_adi || '',
+            item.durum || '',
+            item.hucreler?.hucre_kodu || item.hucre_kodu || '',
+            formatTarih(item.olusturulma_tarihi),
+            formatTarih(item.guncellenme_tarihi || item.olusturulma_tarihi)
+          ])
+        ]
+
+      case 'hucre':
+        if (!Array.isArray(data) || data.length === 0) return [['Hücre verisi bulunamadı']]
+        
+        return [
+          ['SURTEKS OS - HÜCRE RAPORU'],
+          [`Rapor Tarihi: ${formatTarih(new Date().toISOString())}`],
+          [''],
+          ['HÜCRE KODU', 'RAF', 'DOLAP', 'ODA', 'KAPASİTE', 'MEVCUT', 'DOLULUK %', 'DURUM'],
+          ...data.map(item => [
+            item.hucre_kodu || '',
+            item.raflar?.raf_kodu || '',
+            item.raflar?.dolaplar?.dolap_kodu || '',
+            item.raflar?.dolaplar?.odalar?.oda_kodu || '',
+            item.kapasite || 0,
+            item.mevcut_kartela_sayisi || 0,
+            `${item.dolulukOrani || 0}%`,
+            item.aktif ? 'AKTİF' : 'PASİF'
+          ])
+        ]
+
+      case 'transfer':
+        if (!Array.isArray(data) || data.length === 0) return [['Transfer verisi bulunamadı']]
+        
+        return [
+          ['SURTEKS OS - TRANSFER RAPORU'],
+          [`Rapor Tarihi: ${formatTarih(new Date().toISOString())}`],
+          [`Dönem: ${filtreler.baslangicTarihi} - ${filtreler.bitisTarihi}`],
+          [''],
+          ['TARİH', 'KULLANICI', 'HAREKET TİPİ', 'KAYNAK', 'HEDEF', 'KARTELA', 'AÇIKLAMA'],
+          ...data.map(item => [
+            formatTarih(item.tarih),
+            item.kullanicilar ? `${item.kullanicilar.ad} ${item.kullanicilar.soyad}` : '',
+            item.hareket_tipi || '',
+            item.kaynak_hucre || '',
+            item.hedef_hucre || '',
+            item.kartela_sayisi || 0,
+            item.aciklama || ''
+          ])
+        ]
+
+      case 'musteri':
+        if (!Array.isArray(data) || data.length === 0) return [['Müşteri verisi bulunamadı']]
+        
+        return [
+          ['SURTEKS OS - MÜŞTERİ RAPORU'],
+          [`Rapor Tarihi: ${formatTarih(new Date().toISOString())}`],
+          [`Dönem: ${filtreler.baslangicTarihi} - ${filtreler.bitisTarihi}`],
+          [''],
+          ['MÜŞTERİ ADI', 'DURUM', 'KARTELA SAYISI'],
+          ...data.map(item => [
+            item.musteri_adi || '',
+            item.durum || '',
+            item.kartela_sayisi || 0
+          ])
+        ]
+
+      case 'kullanici':
+        if (!Array.isArray(data) || data.length === 0) return [['Kullanıcı verisi bulunamadı']]
+        
+        return [
+          ['SURTEKS OS - KULLANICI RAPORU'],
+          [`Rapor Tarihi: ${formatTarih(new Date().toISOString())}`],
+          [`Dönem: ${filtreler.baslangicTarihi} - ${filtreler.bitisTarihi}`],
+          [''],
+          ['KULLANICI', 'HAREKET TİPİ', 'İŞLEM SAYISI'],
+          ...data.map(item => [
+            item.kullanicilar ? `${item.kullanicilar.ad} ${item.kullanicilar.soyad}` : '',
+            item.hareket_tipi || '',
+            item.islem_sayisi || 0
+          ])
+        ]
+
+      default:
+        return [['Veri bulunamadı']]
+    }
+  }
+
+  const exportToExcel = (data: any, reportType: RaporTipi) => {
+    try {
+      const excelData = prepareExcelData(data, reportType)
+      const ws = XLSX.utils.aoa_to_sheet(excelData)
+      
+      const colWidths = excelData[0] 
+        ? excelData[0].map((_, colIndex) => {
+            const maxLength = Math.max(
+              ...excelData.map(row => 
+                String(row[colIndex] || '').length
+              )
+            )
+            return { wch: Math.min(Math.max(maxLength, 10), 50) }
+          })
+        : []
+      
+      ws['!cols'] = colWidths
+      
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < excelData[0]?.length; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          if (ws[cellAddress]) {
+            ws[cellAddress].s = {
+              font: { bold: true, sz: row === 0 ? 14 : 11 },
+              alignment: { horizontal: 'center' }
+            }
+          }
+        }
+      }
+      
+      const headerRow = 3
+      for (let col = 0; col < excelData[headerRow]?.length; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: headerRow, c: col })
+        if (ws[cellAddress]) {
+          ws[cellAddress].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4F46E5" } },
+            alignment: { horizontal: 'center' }
+          }
+        }
+      }
+      
+      const wb = XLSX.utils.book_new()
+      const sheetName = reportType.charAt(0).toUpperCase() + reportType.slice(1)
+      XLSX.utils.book_append_sheet(wb, ws, sheetName)
+      
+      const tarih = new Date().toISOString().split('T')[0]
+      const fileName = `SurteksOS_${reportType}_${filtreler.baslangicTarihi}_${filtreler.bitisTarihi}_${tarih}.xlsx`
+      
+      const excelBuffer = XLSX.write(wb, { 
+        bookType: 'xlsx', 
+        type: 'array' 
+      })
+      
+      const blob = new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      })
+      
+      saveAs(blob, fileName)
+      
+    } catch (error) {
+      console.error('Excel oluşturma hatası:', error)
+      alert('Excel dosyası oluşturulurken bir hata oluştu.')
+    }
   }
 
   const raporGetir = async () => {
@@ -92,33 +309,29 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
       setRaporVerisi(data)
     } catch (error) {
       console.error('Rapor hatası:', error)
+      alert('Rapor oluşturulurken hata oluştu.')
     } finally {
       setLoading(false)
     }
   }
 
-  // 1. GENEL RAPOR
   const genelRaporGetir = async () => {
     const [kartelalar, hucreler, transferler, musteriler] = await Promise.all([
-      // Kartela istatistikleri
       supabase.from('kartelalar')
         .select('durum, olusturulma_tarihi', { count: 'exact' })
         .eq('silindi', false)
         .gte('olusturulma_tarihi', filtreler.baslangicTarihi)
         .lte('olusturulma_tarihi', filtreler.bitisTarihi + ' 23:59:59'),
       
-      // Hücre doluluk oranları
       supabase.from('hucreler')
         .select('kapasite, mevcut_kartela_sayisi, aktif')
         .eq('aktif', true),
       
-      // Transfer hareketleri
       supabase.from('hareket_loglari')
         .select('*')
         .gte('tarih', filtreler.baslangicTarihi)
         .lte('tarih', filtreler.bitisTarihi + ' 23:59:59'),
       
-      // Müşteri kartelaları
       supabase.from('kartelalar')
         .select('musteri_adi', { count: 'exact' })
         .not('musteri_adi', 'is', null)
@@ -146,7 +359,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     }
   }
 
-  // 2. KARTELA RAPORU
   const kartelaRaporuGetir = async () => {
     let query = supabase
       .from('kartelalar')
@@ -172,7 +384,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     return data
   }
 
-  // 3. HÜCRE RAPORU
   const hucreRaporuGetir = async () => {
     const { data } = await supabase
       .from('hucreler')
@@ -192,7 +403,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     }))
   }
 
-  // 4. TRANSFER RAPORU
   const transferRaporuGetir = async () => {
     const { data } = await supabase
       .from('hareket_loglari')
@@ -208,7 +418,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     return data
   }
 
-  // 5. MÜŞTERİ RAPORU
   const musteriRaporuGetir = async () => {
     const { data } = await supabase
       .from('kartelalar')
@@ -220,7 +429,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
       .gte('olusturulma_tarihi', filtreler.baslangicTarihi)
       .lte('olusturulma_tarihi', filtreler.bitisTarihi + ' 23:59:59')
 
-    // Group the data in JavaScript
     const grouped = data?.reduce((acc: any[], item: any) => {
       const existing = acc.find(x => x.musteri_adi === item.musteri_adi && x.durum === item.durum)
       if (existing) {
@@ -234,7 +442,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     return grouped?.sort((a, b) => a.musteri_adi.localeCompare(b.musteri_adi))
   }
 
-  // 6. KULLANICI RAPORU
   const kullaniciRaporuGetir = async () => {
     const { data } = await supabase
       .from('hareket_loglari')
@@ -246,7 +453,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
       .gte('tarih', filtreler.baslangicTarihi)
       .lte('tarih', filtreler.bitisTarihi + ' 23:59:59')
 
-    // Group the data in JavaScript
     const grouped = data?.reduce((acc: any[], item: any) => {
       const key = `${item.kullanici_id}_${item.hareket_tipi}`
       const existing = acc.find(x => `${x.kullanici_id}_${x.hareket_tipi}` === key)
@@ -261,41 +467,33 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
     return grouped?.sort((a, b) => b.islem_sayisi - a.islem_sayisi)
   }
 
-  // Raporu PDF/Excel olarak indir
   const raporIndir = (format: 'pdf' | 'excel') => {
-    if (!raporVerisi) return
-    
-    const dataStr = JSON.stringify(raporVerisi, null, 2)
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-    
-    const link = document.createElement('a')
-    link.setAttribute('href', dataUri)
-    link.setAttribute('download', `rapor_${filtreler.raporTipi}_${new Date().toISOString().split('T')[0]}.json`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    
-    alert(`Rapor ${format.toUpperCase()} formatında indiriliyor...`)
+    if (!raporVerisi) {
+      alert('Önce rapor oluşturun!')
+      return
+    }
+
+    if (format === 'excel') {
+      exportToExcel(raporVerisi, filtreler.raporTipi)
+    } else {
+      const dataStr = JSON.stringify(raporVerisi, null, 2)
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
+      
+      const link = document.createElement('a')
+      link.setAttribute('href', dataUri)
+      link.setAttribute('download', `rapor_${filtreler.raporTipi}_${new Date().toISOString().split('T')[0]}.json`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
   }
 
-  // Raporu yazdır
   const raporYazdir = () => {
     window.print()
   }
 
-  const formatTarih = (tarih: string) => {
-    return new Date(tarih).toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-      {/* Başlık */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
@@ -306,16 +504,24 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => raporIndir('pdf')}
-            className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+            onClick={() => raporIndir('excel')}
+            className="px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm"
             disabled={!raporVerisi || loading}
           >
             <Download className="h-4 w-4" />
-            PDF İndir
+            Excel İndir
+          </button>
+          <button
+            onClick={() => raporIndir('pdf')}
+            className="px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm"
+            disabled={!raporVerisi || loading}
+          >
+            <FileText className="h-4 w-4" />
+            JSON İndir
           </button>
           <button
             onClick={raporYazdir}
-            className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 transition-all shadow-sm"
             disabled={!raporVerisi || loading}
           >
             <Printer className="h-4 w-4" />
@@ -324,7 +530,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
         </div>
       </div>
 
-      {/* Filtreler */}
       <div className="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Filter className="h-5 w-5 text-gray-500" />
@@ -332,7 +537,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Rapor Tipi */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Rapor Tipi</label>
             <select
@@ -349,7 +553,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
             </select>
           </div>
 
-          {/* Tarih Aralığı */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -374,7 +577,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
           </div>
         </div>
 
-        {/* Ek Filtreler */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {filtreler.raporTipi === 'kartela' && (
             <>
@@ -412,7 +614,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
           )}
         </div>
 
-        {/* Raporu Getir Butonu */}
         <button
           onClick={raporGetir}
           disabled={loading}
@@ -432,7 +633,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
         </button>
       </div>
 
-      {/* Rapor Sonuçları */}
       {raporVerisi && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-6">
@@ -442,7 +642,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
             </span>
           </div>
 
-          {/* Genel Rapor Görünümü */}
           {filtreler.raporTipi === 'genel' && raporVerisi.kartelaIstatistikleri && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
@@ -495,7 +694,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
             </div>
           )}
 
-          {/* Detaylı Rapor Tablosu */}
           {Array.isArray(raporVerisi) && raporVerisi.length > 0 && (
             <div className="overflow-x-auto border border-gray-200 rounded-xl">
               <table className="min-w-full divide-y divide-gray-200">
@@ -526,7 +724,6 @@ export default function RaporAlma({ currentOdaId, currentUserId }: RaporAlmaProp
             </div>
           )}
 
-          {/* Boş Rapor */}
           {(!raporVerisi || (Array.isArray(raporVerisi) && raporVerisi.length === 0)) && (
             <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
               <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
