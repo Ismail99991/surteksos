@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Palette } from 'lucide-react';
 import KartelaSearch from './KartelaSearch';
 
 interface Props {
@@ -17,9 +17,12 @@ export default function KartelaSearchModal({ currentRoom, currentUserId }: Props
       {/* 1. KÜÇÜK BUTON (Sayfada gözükecek) */}
       <div className="bg-white p-4 rounded-lg border shadow-sm">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold">🎨 Kartela Arama</h3>
-            <p className="text-sm text-gray-600">Renk kodu veya barkod ile ara</p>
+          <div className="flex items-center gap-2"> {/* className (küçük c) olacak */}
+            <Palette className="h-5 w-5 text-gray-700" /> {/* className (küçük c) olacak */}
+            <div>
+              <h3 className="font-semibold">Kartela Arama</h3>
+              <p className="text-sm text-gray-600">Renk kodu veya barkod ile ara</p>
+            </div>
           </div>
           <button
             onClick={() => setIsOpen(true)}
