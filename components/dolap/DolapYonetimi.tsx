@@ -19,10 +19,13 @@ import {
   Users,
   Settings,
   Check,
-  X
+  X,
+  QrCode,  // YENİ EKLENDİ
+  Printer  // YENİ EKLENDİ
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
+import HucreQrPrint from '@/components/qr/HucreQrPrint'; // YENİ EKLENDİ
 
 const supabase = createClient();
 
@@ -35,6 +38,12 @@ interface DolapYonetimiProps {
   currentOdaId?: number;
 }
 
+// YENİ EKLENDİ - Hücre tipini genişlet
+type HucreWithDetails = HucreType & {
+  dolap_kodu?: string;
+  raf_kodu?: string;
+};
+
 export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
   // State'ler
   const [dolaplar, setDolaplar] = useState<DolapType[]>([]);
@@ -43,6 +52,10 @@ export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
   const [odalar, setOdalar] = useState<OdaType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // YENİ EKLENDİ - QR state'leri
+  const [showQrPrint, setShowQrPrint] = useState(false);
+  const [selectedQrHucreler, setSelectedQrHucreler] = useState<HucreWithDetails[]>([]);
 
   // Filtreler
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +101,60 @@ export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // YENİ EKLENDİ - Tüm hücrelerin QR kodlarını yazdır
+  const handlePrintAllQr = () => {
+    // Hücrelere dolap ve raf kodlarını ekle
+    const hucrelerWithDetails: HucreWithDetails[] = hucreler.map(hucre => {
+      const raf = raflar.find(r => r.id === hucre.raf_id);
+      const dolap = dolaplar.find(d => d.id === raf?.dolap_id);
+      return {
+        ...hucre,
+        dolap_kodu: dolap?.dolap_kodu,
+        raf_kodu: raf?.raf_kodu
+      };
+    });
+    
+    setSelectedQrHucreler(hucrelerWithDetails);
+    setShowQrPrint(true);
+  };
+
+  // YENİ EKLENDİ - Bir dolabın hücrelerini yazdır
+  const handlePrintDolapQr = (dolapId: number) => {
+    const dolapRaflari = raflar.filter(raf => raf.dolap_id === dolapId);
+    const dolapHucreleri = hucreler.filter(hucre => 
+      dolapRaflari.some(raf => raf.id === hucre.raf_id)
+    );
+    
+    const hucrelerWithDetails: HucreWithDetails[] = dolapHucreleri.map(hucre => {
+      const raf = raflar.find(r => r.id === hucre.raf_id);
+      const dolap = dolaplar.find(d => d.id === dolapId);
+      return {
+        ...hucre,
+        dolap_kodu: dolap?.dolap_kodu,
+        raf_kodu: raf?.raf_kodu
+      };
+    });
+    
+    setSelectedQrHucreler(hucrelerWithDetails);
+    setShowQrPrint(true);
+  };
+
+  // YENİ EKLENDİ - Bir rafın hücrelerini yazdır
+  const handlePrintRafQr = (rafId: number) => {
+    const rafHucreleri = hucreler.filter(hucre => hucre.raf_id === rafId);
+    const raf = raflar.find(r => r.id === rafId);
+    const dolap = dolaplar.find(d => d.id === raf?.dolap_id);
+    
+    const hucrelerWithDetails: HucreWithDetails[] = rafHucreleri.map(hucre => ({
+      ...hucre,
+      dolap_kodu: dolap?.dolap_kodu,
+      raf_kodu: raf?.raf_kodu
+    }));
+    
+    setSelectedQrHucreler(hucrelerWithDetails);
+    setShowQrPrint(true);
   };
 
   // Filtrelenmiş dolaplar
@@ -160,6 +227,16 @@ export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
         </div>
         
         <div className="flex flex-wrap gap-2">
+          {/* YENİ EKLENDİ - Tüm Hücreleri QR Yazdır Butonu */}
+          <button
+            onClick={handlePrintAllQr}
+            className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-1"
+            title="Tüm hücrelerin QR kodlarını yazdır"
+          >
+            <QrCode className="h-4 w-4" />
+            <span className="text-sm">Tüm QR'lar</span>
+          </button>
+
           <div className="px-3 py-1 bg-gray-800 rounded-lg">
             <span className="text-gray-400 text-sm">Dolap: </span>
             <span className="text-white font-semibold">{stats.toplamDolap}</span>
@@ -308,6 +385,17 @@ export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
                   </div>
                 </div>
 
+                {/* YENİ EKLENDİ - Dolap QR Butonu */}
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => handlePrintDolapQr(dolap.id)}
+                    className="px-2 py-1 bg-purple-600/20 text-purple-400 rounded text-xs hover:bg-purple-600/30 flex items-center gap-1"
+                  >
+                    <QrCode className="h-3 w-3" />
+                    Tüm Hücreleri Yazdır
+                  </button>
+                </div>
+
                 {/* Dolap Detayları */}
                 <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                   <div className="bg-gray-750 rounded p-2">
@@ -336,9 +424,14 @@ export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
                       <div key={raf.id} className="bg-gray-750 rounded p-2 text-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-300 font-medium">{raf.raf_kodu}</span>
-                          <span className="text-gray-400 text-xs">
-                            {rafHucreleri.length} hücre
-                          </span>
+                          {/* YENİ EKLENDİ - Raf QR Butonu */}
+                          <button
+                            onClick={() => handlePrintRafQr(raf.id)}
+                            className="text-purple-400 hover:text-purple-300"
+                            title="Bu raftaki hücrelerin QR kodlarını yazdır"
+                          >
+                            <QrCode className="h-3 w-3" />
+                          </button>
                         </div>
                         {raf.kapasite && (
                           <div className="text-xs text-gray-500 mt-1">
@@ -380,6 +473,19 @@ export default function DolapYonetimi({ currentOdaId }: DolapYonetimiProps) {
             Her raf: {dolaplar[0]?.hucre_sayisi_raf || 16} hücre × {dolaplar[0]?.kapasite_hucre || 50} kapasite = 800 kartela
           </div>
         </div>
+      )}
+
+      {/* YENİ EKLENDİ - QR Print Modal */}
+      {showQrPrint && (
+        <HucreQrPrint
+          hucreler={selectedQrHucreler.map(h => ({
+            id: h.id,
+            hucre_kodu: h.hucre_kodu,
+            dolap_kodu: h.dolap_kodu,
+            raf_kodu: h.raf_kodu
+          }))}
+          onClose={() => setShowQrPrint(false)}
+        />
       )}
     </div>
   );

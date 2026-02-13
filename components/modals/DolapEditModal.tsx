@@ -5,10 +5,11 @@ import { useState, useEffect } from 'react';
 import { 
   X, Package, Layers, Grid, Building, Users, 
   Save, RefreshCw, Trash2, Plus, Search,
-  Lock, Unlock, Eye, Filter
+  Lock, Unlock, Eye, Filter, Printer, QrCode
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
+import HucreQrPrint from '@/components/qr/HucreQrPrint';
 
 const supabase = createClient();
 
@@ -20,10 +21,8 @@ type HucreType = Database['public']['Tables']['hucreler']['Row'] & {
 type OdaType = Database['public']['Tables']['odalar']['Row'];
 type MusteriType = Database['public']['Tables']['musteriler']['Row'];
 
-// JOIN için type
 type HucreWithMusteriType = HucreType & {
   musteriler: MusteriType | null;
-  // 'aciklama' zaten HucreType içinde varsa, burada tekrar tanımlamaya gerek yok!
 };
 
 interface DolapEditModalProps {
@@ -44,7 +43,6 @@ export default function DolapEditModal({
     oda_id: dolap.oda_id?.toString() || '',
     aktif: dolap.aktif || false,
     aciklama: dolap.aciklama || '',
-    musteri_ozel: false, // Sizde bu alan yok, kaldırdım
   });
 
   const [raflar, setRaflar] = useState<RafType[]>([]);
@@ -63,17 +61,19 @@ export default function DolapEditModal({
     aciklama: ''
   });
 
+  // QR kod için state'ler
+  const [showQrPrint, setShowQrPrint] = useState(false);
+  const [selectedQrHucreler, setSelectedQrHucreler] = useState<HucreWithMusteriType[]>([]);
+
   // Filtreler
   const [hucreFilter, setHucreFilter] = useState<'all' | 'empty' | 'occupied' | 'customer'>('all');
   const [rafFilter, setRafFilter] = useState<number | 'all'>('all');
   const [hucreSearch, setHucreSearch] = useState('');
 
-  // 🔥 JOIN SORGUSU BURADA! 🔥
   const loadDetayData = async () => {
     setDataLoading(true);
     
     try {
-      // 1. HUCRER + MÜŞTERİ JOIN
       const { data: hucrelerData, error: hucreError } = await supabase
         .from('hucreler')
         .select(`
@@ -102,7 +102,6 @@ export default function DolapEditModal({
         }))
       );
 
-      // 2. RAF BİLGİLERİ
       const { data: raflarData, error: rafError } = await supabase
         .from('raflar')
         .select('*')
@@ -121,7 +120,6 @@ export default function DolapEditModal({
     }
   };
 
-  // MÜŞTERİLERİ YÜKLE (dropdown için)
   const loadMusteriler = async () => {
     const { data, error } = await supabase
       .from('musteriler')
@@ -206,17 +204,25 @@ export default function DolapEditModal({
     }
   };
 
-  // FİLTRELENMİŞ HÜCRELER
+  // QR kod fonksiyonları
+  const handlePrintAllQr = () => {
+    setSelectedQrHucreler(hucreler);
+    setShowQrPrint(true);
+  };
+
+  const handlePrintSingleQr = (hucre: HucreWithMusteriType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedQrHucreler([hucre]);
+    setShowQrPrint(true);
+  };
+
   const filteredHucreler = hucreler.filter(hucre => {
-    // Raf filtresi
     if (rafFilter !== 'all' && hucre.raf_id !== rafFilter) return false;
     
-    // Arama filtresi
     if (hucreSearch && !hucre.hucre_kodu.toLowerCase().includes(hucreSearch.toLowerCase())) {
       return false;
     }
     
-    // Durum filtresi
     switch (hucreFilter) {
       case 'empty':
         return (hucre.mevcut_kartela_sayisi || 0) === 0;
@@ -248,12 +254,22 @@ export default function DolapEditModal({
           </div>
           
           <div className="flex gap-2">
+            {/* QR BUTONU - Tüm hücreler için */}
+            <button
+              onClick={handlePrintAllQr}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+              title="Tüm hücrelerin QR kodlarını yazdır"
+            >
+              <QrCode className="h-4 w-4" />
+              <span className="hidden md:inline">Tüm QR'lar</span>
+            </button>
+            
             <button
               onClick={loadDetayData}
               className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4" />
-              Yenile
+              <span className="hidden md:inline">Yenile</span>
             </button>
             <button
               onClick={onClose}
@@ -390,7 +406,7 @@ export default function DolapEditModal({
                         return (
                           <div
                             key={hucre.id}
-                            className={`rounded-lg p-3 border transition-all cursor-pointer ${
+                            className={`rounded-lg p-3 border transition-all cursor-pointer relative group ${
                               selectedHucre?.id === hucre.id 
                                 ? 'border-blue-500 bg-blue-900/20' 
                                 : isMusteri 
@@ -406,8 +422,17 @@ export default function DolapEditModal({
                               });
                             }}
                           >
+                            {/* QR BUTONU - Her hücre için */}
+                            <button
+                              onClick={(e) => handlePrintSingleQr(hucre, e)}
+                              className="absolute top-1 right-1 p-1 bg-gray-700 rounded hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                              title="QR Kod Yazdır"
+                            >
+                              <QrCode className="h-3 w-3 text-gray-300" />
+                            </button>
+
                             <div className="flex justify-between items-start">
-                              <div className="font-mono text-sm text-white truncate">
+                              <div className="font-mono text-sm text-white truncate pr-6">
                                 {hucre.hucre_kodu}
                               </div>
                               {isMusteri && (
@@ -417,7 +442,6 @@ export default function DolapEditModal({
                               )}
                             </div>
                             
-                            {/* MÜŞTERİ ADI - JOIN SAYESİNDE BURADA! */}
                             {isMusteri && hucre.musteriler && (
                               <div className="text-xs text-purple-300 truncate mt-1">
                                 {hucre.musteriler.musteri_adi}
@@ -586,6 +610,19 @@ export default function DolapEditModal({
           </div>
         </div>
       </div>
+
+      {/* QR PRINT MODAL */}
+      {showQrPrint && (
+        <HucreQrPrint
+          hucreler={selectedQrHucreler.map(h => ({
+            id: h.id,
+            hucre_kodu: h.hucre_kodu,
+            dolap_kodu: dolap.dolap_kodu,
+            raf_kodu: raflar.find(r => r.id === h.raf_id)?.raf_kodu
+          }))}
+          onClose={() => setShowQrPrint(false)}
+        />
+      )}
     </div>
   );
 }
