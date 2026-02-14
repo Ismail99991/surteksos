@@ -1,7 +1,6 @@
 'use client';
 
 import { 
-  // Lucide ikonları
   LayoutGrid, 
   Box,
   Package,
@@ -177,152 +176,189 @@ export default function DepolamaIstatistikleri({
     try {
       setLoading(true);
 
-      // Kartela
-      const [
-        { count: toplamKartela },
-        { count: doluKartela }
-      ] = await Promise.all([
-        supabase.from('kartelalar').select('*', { count: 'exact', head: true }),
-        supabase.from('kartelalar').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
-      ]);
+      // ===== KARTELA İSTATİSTİKLERİ (DOĞRU) =====
+      const { count: toplamKartela } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false);
 
-      // Dolap
-      const [
-        { count: toplamDolap },
-        { count: doluDolap }
-      ] = await Promise.all([
-        supabase.from('dolaplar').select('*', { count: 'exact', head: true }),
-        supabase.from('dolaplar').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
-      ]);
+      // Dolu kartela = durumu 'DOLU' olanlar
+      const { count: doluKartela } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('durum', 'DOLU');
 
-      // Raf
-      const [
-        { count: toplamRaf },
-        { count: doluRaf }
-      ] = await Promise.all([
-        supabase.from('raflar').select('*', { count: 'exact', head: true }),
-        supabase.from('raflar').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
-      ]);
+      // Aktif kartela = durumu 'AKTIF' olanlar (bunlar da dolu sayılır)
+      const { count: aktifKartela } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('durum', 'AKTIF');
 
-      // Hücre
-      const [
-        { count: toplamHücre },
-        { count: doluHücre }
-      ] = await Promise.all([
-        supabase.from('hucreler').select('*', { count: 'exact', head: true }),
-        supabase.from('hucreler').select('*', { count: 'exact', head: true }).eq('durum', 'DOLU')
-      ]);
+      // Toplam dolu kartela = DOLU + AKTIF
+      const toplamDoluKartela = (doluKartela || 0) + (aktifKartela || 0);
 
-      // Son eklenenler
+      // ===== DOLAP İSTATİSTİKLERİ (DOĞRU) =====
+      const { count: toplamDolap } = await supabase
+        .from('dolaplar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false);
+
+      // Dolu dolap = aktif olanlar (durum değil, aktif boolean)
+      const { count: aktifDolap } = await supabase
+        .from('dolaplar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('aktif', true);
+
+      // ===== RAF İSTATİSTİKLERİ (DOĞRU) =====
+      const { count: toplamRaf } = await supabase
+        .from('raflar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false);
+
+      const { count: aktifRaf } = await supabase
+        .from('raflar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .eq('aktif', true);
+
+      // ===== HÜCRE İSTATİSTİKLERİ (DOĞRU) =====
+      const { count: toplamHücre } = await supabase
+        .from('hucreler')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false);
+
+      // Dolu hücre = mevcut_kartela_sayisi > 0 olanlar
+      const { data: doluHücreler } = await supabase
+        .from('hucreler')
+        .select('id')
+        .eq('silindi', false)
+        .gt('mevcut_kartela_sayisi', 0);
+
+      const doluHücre = doluHücreler?.length || 0;
+      const bosHücre = (toplamHücre || 0) - doluHücre;
+
+      // ===== SON EKLENENLER (DOĞRU: kartelalar tablosu) =====
       const now = new Date();
       const last24h = subDays(now, 1);
       const last7d = subDays(now, 7);
 
-      const [
-        { count: son24SaatEklenen },
-        { count: son7GunEklenen }
-      ] = await Promise.all([
-        supabase.from('hucreler').select('*', { count: 'exact', head: true })
-          .gte('created_at', last24h.toISOString()),
-        supabase.from('hucreler').select('*', { count: 'exact', head: true })
-          .gte('created_at', last7d.toISOString())
-      ]);
+      const { count: son24SaatEklenen } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .gte('created_at', last24h.toISOString());
 
-      // Doluluk trendi
+      const { count: son7GunEklenen } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+        .gte('created_at', last7d.toISOString());
+
+      // ===== DOLULUK TRENDİ (DOĞRU: kapasite bazlı) =====
       const dolulukTrendi = [];
       for (let i = 6; i >= 0; i--) {
         const date = subDays(now, i);
-        const { count: doluOlanlar } = await supabase
+        
+        // O tarihte var olan hücrelerin kapasite ve doluluk bilgisi
+        const { data: hucreler } = await supabase
           .from('hucreler')
-          .select('*', { count: 'exact', head: true })
-          .eq('durum', 'DOLU')
+          .select('kapasite, mevcut_kartela_sayisi')
+          .eq('silindi', false)
           .lte('created_at', date.toISOString());
 
-        const { count: toplamOlanlar } = await supabase
-          .from('hucreler')
-          .select('*', { count: 'exact', head: true })
-          .lte('created_at', date.toISOString());
+        const toplamKapasite = hucreler?.reduce((sum, h) => sum + (h.kapasite || 0), 0) || 0;
+        const doluKapasite = hucreler?.reduce((sum, h) => sum + (h.mevcut_kartela_sayisi || 0), 0) || 0;
 
         dolulukTrendi.push({
           tarih: format(date, 'dd MMM', { locale: tr }),
-          oran: toplamOlanlar && toplamOlanlar > 0 
-            ? Math.round(((doluOlanlar || 0) / toplamOlanlar) * 100) 
-            : 0
+          oran: toplamKapasite > 0 ? Math.round((doluKapasite / toplamKapasite) * 100) : 0
         });
       }
 
-      // Özet istatistikler
-      const [
-        { count: toplamKullanici },
-        { count: aktifKullanici },
-        { count: toplamOda },
-        { count: aktifOda }
-      ] = await Promise.all([
-        supabase.from('kullanicilar').select('*', { count: 'exact', head: true }),
-        supabase.from('kullanicilar').select('*', { count: 'exact', head: true }).eq('aktif', true),
-        supabase.from('odalar').select('*', { count: 'exact', head: true }),
-        supabase.from('odalar').select('*', { count: 'exact', head: true }).eq('aktif', true)
-      ]);
+      // ===== ÖZET İSTATİSTİKLER =====
+      const { count: toplamKullanici } = await supabase
+        .from('kullanicilar')
+        .select('*', { count: 'exact', head: true });
 
-      // Null kontrolü
-      const tKartela = toplamKartela ?? 0;
-      const dKartela = doluKartela ?? 0;
-      const tDolap = toplamDolap ?? 0;
-      const dDolap = doluDolap ?? 0;
-      const tRaf = toplamRaf ?? 0;
-      const dRaf = doluRaf ?? 0;
-      const tHücre = toplamHücre ?? 0;
-      const dHücre = doluHücre ?? 0;
+      const { count: aktifKullanici } = await supabase
+        .from('kullanicilar')
+        .select('*', { count: 'exact', head: true })
+        .eq('aktif', true);
+
+      const { count: toplamOda } = await supabase
+        .from('odalar')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: aktifOda } = await supabase
+        .from('odalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('aktif', true);
+
+      // Null kontrolleri
+      const tKartela = toplamKartela || 0;
+      const tDolap = toplamDolap || 0;
+      const tRaf = toplamRaf || 0;
+      const tHücre = toplamHücre || 0;
 
       const toplamDepolamaBirimi = tKartela + tDolap + tRaf + tHücre;
-      const toplamDoluBirim = dKartela + dDolap + dRaf + dHücre;
+      const toplamDoluBirim = toplamDoluKartela + (aktifDolap || 0) + (aktifRaf || 0) + doluHücre;
 
       const yeniDepolama: DepolamaIstatistikleri = {
+        // Kartela
         toplamKartela: tKartela,
-        doluKartela: dKartela,
-        bosKartela: tKartela - dKartela,
-        dolulukOraniKartela: tKartela > 0 ? Math.round((dKartela / tKartela) * 100) : 0,
+        doluKartela: toplamDoluKartela,
+        bosKartela: tKartela - toplamDoluKartela,
+        dolulukOraniKartela: tKartela > 0 ? Math.round((toplamDoluKartela / tKartela) * 100) : 0,
         
+        // Dolap
         toplamDolap: tDolap,
-        doluDolap: dDolap,
-        bosDolap: tDolap - dDolap,
-        dolulukOraniDolap: tDolap > 0 ? Math.round((dDolap / tDolap) * 100) : 0,
+        doluDolap: aktifDolap || 0,
+        bosDolap: tDolap - (aktifDolap || 0),
+        dolulukOraniDolap: tDolap > 0 ? Math.round(((aktifDolap || 0) / tDolap) * 100) : 0,
         
+        // Raf
         toplamRaf: tRaf,
-        doluRaf: dRaf,
-        bosRaf: tRaf - dRaf,
-        dolulukOraniRaf: tRaf > 0 ? Math.round((dRaf / tRaf) * 100) : 0,
+        doluRaf: aktifRaf || 0,
+        bosRaf: tRaf - (aktifRaf || 0),
+        dolulukOraniRaf: tRaf > 0 ? Math.round(((aktifRaf || 0) / tRaf) * 100) : 0,
         
+        // Hücre
         toplamHücre: tHücre,
-        doluHücre: dHücre,
-        bosHücre: tHücre - dHücre,
-        dolulukOraniHücre: tHücre > 0 ? Math.round((dHücre / tHücre) * 100) : 0,
+        doluHücre: doluHücre,
+        bosHücre: bosHücre,
+        dolulukOraniHücre: tHücre > 0 ? Math.round((doluHücre / tHücre) * 100) : 0,
         
+        // Genel
         toplamDepolamaBirimi,
         toplamDoluBirim,
         toplamBosBirim: toplamDepolamaBirimi - toplamDoluBirim,
         genelDolulukOrani: toplamDepolamaBirimi > 0 ? Math.round((toplamDoluBirim / toplamDepolamaBirimi) * 100) : 0,
         
-        son24SaatEklenen: son24SaatEklenen ?? 0,
-        son7GunEklenen: son7GunEklenen ?? 0,
+        // Aktivite
+        son24SaatEklenen: son24SaatEklenen || 0,
+        son7GunEklenen: son7GunEklenen || 0,
         
+        // Grafikler
         dolulukTrendi,
         
         birimDagilimi: [
-          { name: 'Kartela', dolu: dKartela, bos: tKartela - dKartela, toplam: tKartela },
-          { name: 'Dolap', dolu: dDolap, bos: tDolap - dDolap, toplam: tDolap },
-          { name: 'Raf', dolu: dRaf, bos: tRaf - dRaf, toplam: tRaf },
-          { name: 'Hücre', dolu: dHücre, bos: tHücre - dHücre, toplam: tHücre }
+          { name: 'Kartela', dolu: toplamDoluKartela, bos: tKartela - toplamDoluKartela, toplam: tKartela },
+          { name: 'Dolap', dolu: aktifDolap || 0, bos: tDolap - (aktifDolap || 0), toplam: tDolap },
+          { name: 'Raf', dolu: aktifRaf || 0, bos: tRaf - (aktifRaf || 0), toplam: tRaf },
+          { name: 'Hücre', dolu: doluHücre, bos: bosHücre, toplam: tHücre }
         ]
       };
 
       setDepolama(yeniDepolama);
 
       setOzet({
-        toplamKullanici: toplamKullanici ?? 0,
-        aktifKullanici: aktifKullanici ?? 0,
-        toplamOda: toplamOda ?? 0,
-        aktifOda: aktifOda ?? 0
+        toplamKullanici: toplamKullanici || 0,
+        aktifKullanici: aktifKullanici || 0,
+        toplamOda: toplamOda || 0,
+        aktifOda: aktifOda || 0
       });
 
       if (onDataLoaded) {
@@ -692,10 +728,10 @@ export default function DepolamaIstatistikleri({
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <Clock className="w-4 h-4 text-gray-500" />
           <span className="text-gray-700">
-            <span className="font-medium">Son 24 Saat:</span> {depolama.son24SaatEklenen} yeni hücre
+            <span className="font-medium">Son 24 Saat:</span> {depolama.son24SaatEklenen} yeni kartela
           </span>
           <span className="text-gray-700">
-            <span className="font-medium">Son 7 Gün:</span> {depolama.son7GunEklenen} yeni hücre
+            <span className="font-medium">Son 7 Gün:</span> {depolama.son7GunEklenen} yeni kartela
           </span>
           {depolama.bosHücre > 0 && (
             <>
