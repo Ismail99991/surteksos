@@ -1,3 +1,4 @@
+// components/kartela/KartelaTransfer.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -23,6 +24,7 @@ type Kartela = Database['public']['Tables']['kartelalar']['Row'] & {
   renk_masalari?: {
     pantone_kodu: string | null;
     hex_kodu: string | null;
+    renk_adi: string | null;
   };
   hucreler?: {
     id: number;
@@ -83,11 +85,16 @@ export default function KartelaTransfer({
     setError(null);
     
     try {
-      const { data, error } = await supabase
+      // Önce kartelayı bul (renk_kodu ile)
+      let query = supabase
         .from('kartelalar')
         .select(`
           *,
-          renk_masalari!left (pantone_kodu, hex_kodu),
+          renk_masalari!left (
+            pantone_kodu,
+            hex_kodu,
+            renk_adi
+          ),
           hucreler!left (
             id,
             hucre_kodu,
@@ -114,17 +121,25 @@ export default function KartelaTransfer({
             )
           )
         `)
-        .or(`kartela_no.eq.${kartelaKodu},renk_kodu.ilike.%${kartelaKodu}%`)
-        .eq('silindi', false)
-        .limit(1); // ⬅️ DEĞİŞTİ: .single() → .limit(1)
+        .eq('silindi', false);
+
+      // Eğer sayısal değer girildiyse (23011737 gibi)
+      if (!isNaN(Number(kartelaKodu))) {
+        const renkNo = parseInt(kartelaKodu);
+        query = query.or(`kartela_no.eq.${kartelaKodu},renk_kodu.ilike.%${renkNo}%`);
+      } else {
+        query = query.or(`kartela_no.eq.${kartelaKodu},renk_kodu.ilike.%${kartelaKodu}%`);
+      }
+
+      const { data, error } = await query.limit(1);
 
       if (error) throw error;
       
-      if (!data || data.length === 0) { // ⬅️ DEĞİŞTİ: data kontrolü
+      if (!data || data.length === 0) {
         throw new Error('Kartela bulunamadı!');
       }
 
-      const kartelaData = data[0]; // ⬅️ EKLE: İlk sonucu al
+      const kartelaData = data[0];
 
       // Kartela kontrolü
       if (kartelaData.durum === 'KULLANIM_DISI') {
@@ -174,15 +189,15 @@ export default function KartelaTransfer({
           )
         `)
         .eq('hucre_kodu', hucreKodu)
-        .limit(1); // ⬅️ DEĞİŞTİ: .single() → .limit(1)
+        .limit(1);
 
       if (error) throw error;
       
-      if (!data || data.length === 0) { // ⬅️ DEĞİŞTİ: data kontrolü
+      if (!data || data.length === 0) {
         throw new Error('Hücre bulunamadı!');
       }
 
-      const hucreData = data[0]; // ⬅️ EKLE: İlk sonucu al
+      const hucreData = data[0];
 
       // Hücre kontrolü
       if (!hucreData.aktif) {
@@ -457,7 +472,17 @@ export default function KartelaTransfer({
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <div className="font-bold text-gray-900">{kartela.kartela_no || `KRT-${kartela.id}`}</div>
-                <div className="text-sm text-gray-600">{kartela.renk_kodu} • {kartela.renk_adi}</div>
+                <div className="text-sm text-gray-600">
+                  <span className="font-mono">{kartela.renk_kodu}</span>
+                  {kartela.renk_masalari?.renk_adi ? (
+                    <span className="ml-2">• {kartela.renk_masalari.renk_adi}</span>
+                  ) : (
+                    <span className="ml-2 text-amber-600 text-xs">(Renk adı girilmemiş)</span>
+                  )}
+                  {kartela.renk_masalari?.pantone_kodu && (
+                    <span className="ml-2 text-xs text-purple-600">• {kartela.renk_masalari.pantone_kodu}</span>
+                  )}
+                </div>
                 <div className="text-xs text-gray-500 mt-1">
                   {renderKartelaKonum()}
                 </div>
@@ -483,7 +508,7 @@ export default function KartelaTransfer({
               <input
                 ref={hucreInputRef}
                 type="text"
-                placeholder="Hücre kodu girin (örn: HCR-001)"
+                placeholder="Hücre kodu girin (örn: ARSIV-HUCRE-01)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
                 onKeyPress={(e) => e.key === 'Enter' && handleHucreManual()}
               />
@@ -528,7 +553,14 @@ export default function KartelaTransfer({
               <div className="text-left">
                 <div className="font-bold text-gray-900 mb-2">📦 TAŞINACAK KARTELA</div>
                 <div className="font-mono font-bold text-blue-700">{kartela.kartela_no || `KRT-${kartela.id}`}</div>
-                <div className="text-sm text-gray-700">{kartela.renk_kodu} • {kartela.renk_adi}</div>
+                <div className="text-sm text-gray-700">
+                  <span className="font-mono">{kartela.renk_kodu}</span>
+                  {kartela.renk_masalari?.renk_adi ? (
+                    <span className="ml-2">• {kartela.renk_masalari.renk_adi}</span>
+                  ) : (
+                    <span className="ml-2 text-amber-600 text-xs">(Renk adı girilmemiş)</span>
+                  )}
+                </div>
                 <div className="text-xs text-gray-500 mt-2">
                   {renderKartelaKonum()}
                 </div>
@@ -585,7 +617,10 @@ export default function KartelaTransfer({
                 <div className="font-bold text-green-800 mb-2">Transfer Özeti:</div>
                 <div className="text-sm">
                   <div className="mb-2">
-                    <span className="font-medium">Kartela:</span> {kartela.kartela_no} • {kartela.renk_adi}
+                    <span className="font-medium">Kartela:</span> {kartela.kartela_no} • {kartela.renk_kodu}
+                    {kartela.renk_masalari?.renk_adi && (
+                      <span> • {kartela.renk_masalari.renk_adi}</span>
+                    )}
                   </div>
                   <div>
                     <span className="font-medium">Yeni Hücre:</span> {hucre.hucre_kodu}
