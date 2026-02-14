@@ -93,7 +93,7 @@ export default function KartelaTransfer({
   }, [autoResetTimeout]);
 
   // STEP 1: Kartela QR Okuma
-  // STEP 1: Kartela QR Okuma
+// STEP 1: Kartela QR Okuma
 const handleKartelaScan = async (kartelaKodu: string) => {
   setLoading(true);
   setError(null);
@@ -138,12 +138,12 @@ const handleKartelaScan = async (kartelaKodu: string) => {
         )
       `)
       .eq('silindi', false)
-      .eq('kartela_no', temizKod)  // Tam eşleşme
-      .maybeSingle();  // Tek kayıt döndür, yoksa null
+      .eq('kartela_no', temizKod)
+      .maybeSingle();
 
     if (error) throw error;
     
-    // 2. Kartela_no ile bulamazsa RENK_KODU ile tam eşleşme ara
+    // 2. Kartela_no ile bulamazsa RENK_KODU ile ara (içinde geçen)
     if (!data) {
       const { data: renkData, error: renkError } = await supabase
         .from('kartelalar')
@@ -181,8 +181,9 @@ const handleKartelaScan = async (kartelaKodu: string) => {
           )
         `)
         .eq('silindi', false)
-        .eq('renk_kodu', temizKod)  // Tam eşleşme
-        .maybeSingle();  // Tek kayıt döndür, yoksa null
+        .ilike('renk_kodu', `%${temizKod}%`)  // İçinde geçenleri ara
+        .limit(1)
+        .maybeSingle();
         
       if (renkError) throw renkError;
       data = renkData;
