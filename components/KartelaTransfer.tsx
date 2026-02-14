@@ -274,7 +274,7 @@ export default function KartelaTransfer({
         .insert({
           kartela_id: kartela.id,
           kartela_no: kartela.kartela_no || `KRT-${kartela.id}`,
-          hareket_tipi: 'TRANSFER',
+          hareket_tipi: 'HUCRE_YERLESTIRME',
           eski_hucre_kodu: kartela.hucre_kodu,
           yeni_hucre_kodu: hucre.hucre_kodu,
           kullanici_id: currentUserId,
