@@ -5,10 +5,13 @@ import { useState, useEffect } from 'react';
 import { 
   X, Package, Layers, Grid, Building, Users, 
   Save, RefreshCw, Trash2, Plus, Search,
-  Lock, Unlock, Eye, Filter, Printer, QrCode
+  Lock, Unlock, Eye, Filter, Printer, QrCode,
+  ChevronDown, ChevronRight, Palette, AlertTriangle,
+  Hash, Info, Check, ChevronsUpDown
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
+import { toast } from 'sonner';
 import HucreQrPrint from '@/components/qr/HucreQrPrint';
 
 const supabase = createClient();
@@ -20,6 +23,7 @@ type HucreType = Database['public']['Tables']['hucreler']['Row'] & {
 };
 type OdaType = Database['public']['Tables']['odalar']['Row'];
 type MusteriType = Database['public']['Tables']['musteriler']['Row'];
+type RenkType = Database['public']['Tables']['renk_masalari']['Row'];
 
 type HucreWithMusteriType = HucreType & {
   musteriler: MusteriType | null;
@@ -47,19 +51,28 @@ export default function DolapEditModal({
 
   const [raflar, setRaflar] = useState<RafType[]>([]);
   const [hucreler, setHucreler] = useState<HucreWithMusteriType[]>([]);
+  const [renkler, setRenkler] = useState<RenkType[]>([]);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   
-  // Müşteriler dropdown için
   const [musteriler, setMusteriler] = useState<MusteriType[]>([]);
   
   // Hücre yönetimi
   const [selectedHucre, setSelectedHucre] = useState<HucreWithMusteriType | null>(null);
   const [hucreEditForm, setHucreEditForm] = useState({
     musteri_id: null as number | null,
+    renk_baslangic_id: null as number | null,
+    renk_bitis_id: null as number | null,
+    kapasite: 50,
     aktif: true,
     aciklama: ''
   });
+
+  // Renk seçici dropdown state'leri
+  const [baslangicSearch, setBaslangicSearch] = useState('');
+  const [bitisSearch, setBitisSearch] = useState('');
+  const [showBaslangicDropdown, setShowBaslangicDropdown] = useState(false);
+  const [showBitisDropdown, setShowBitisDropdown] = useState(false);
 
   // QR kod için state'ler
   const [showQrPrint, setShowQrPrint] = useState(false);
@@ -69,6 +82,24 @@ export default function DolapEditModal({
   const [hucreFilter, setHucreFilter] = useState<'all' | 'empty' | 'occupied' | 'customer'>('all');
   const [rafFilter, setRafFilter] = useState<number | 'all'>('all');
   const [hucreSearch, setHucreSearch] = useState('');
+
+  // ACCORDION STATE'LERİ
+  const [expandedRaflar, setExpandedRaflar] = useState<number[]>([]);
+
+  // RENKLERİ YÜKLE
+  const loadRenkler = async () => {
+    const { data, error } = await supabase
+      .from('renk_masalari')
+      .select('*')
+      .eq('aktif', true)
+      .order('renk_kodu');
+    
+    if (error) {
+      console.error('Renkler yüklenemedi:', error);
+    } else {
+      setRenkler(data || []);
+    }
+  };
 
   const loadDetayData = async () => {
     setDataLoading(true);
@@ -114,7 +145,7 @@ export default function DolapEditModal({
 
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
-      alert('Veriler yüklenemedi');
+      toast.error('Veriler yüklenemedi');
     } finally {
       setDataLoading(false);
     }
@@ -137,6 +168,7 @@ export default function DolapEditModal({
   useEffect(() => {
     loadDetayData();
     loadMusteriler();
+    loadRenkler();
   }, [dolap.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,21 +187,51 @@ export default function DolapEditModal({
       }
 
       await onUpdate(dolap.id, updates);
+      toast.success('Dolap güncellendi!');
     } catch (error) {
-      alert('Güncelleme başarısız');
+      toast.error('Güncelleme başarısız');
     } finally {
       setLoading(false);
     }
   };
 
+  // HÜCRE GÜNCELLEME FONKSİYONU - DÜZELTİLDİ
   const handleHucreUpdate = async (hucreId: number) => {
     if (!selectedHucre) return;
+    
+    // Validasyonlar
+    if (!hucreEditForm.renk_baslangic_id || !hucreEditForm.renk_bitis_id) {
+      toast.error('Lütfen renk aralığı seçin!');
+      return;
+    }
+
+    const baslangicRenk = renkler.find(r => r.id === hucreEditForm.renk_baslangic_id);
+    const bitisRenk = renkler.find(r => r.id === hucreEditForm.renk_bitis_id);
+
+    if (!baslangicRenk || !bitisRenk) {
+      toast.error('Renk bulunamadı!');
+      return;
+    }
+
+    // String olarak karşılaştır (xxxx0001.1, xxxx0002.1)
+    if (baslangicRenk.renk_kodu > bitisRenk.renk_kodu) {
+      toast.error('Başlangıç rengi bitiş renginden büyük olamaz!');
+      return;
+    }
+
+    if (!hucreEditForm.kapasite || hucreEditForm.kapasite < 1) {
+      toast.error('Kapasite 1\'den küçük olamaz!');
+      return;
+    }
     
     try {
       const { error } = await supabase
         .from('hucreler')
         .update({
           musteri_id: hucreEditForm.musteri_id,
+          renk_no_baslangic: baslangicRenk.renk_kodu,  // STRING olarak kaydet
+          renk_no_bitis: bitisRenk.renk_kodu,          // STRING olarak kaydet
+          kapasite: hucreEditForm.kapasite,
           aktif: hucreEditForm.aktif,
           aciklama: hucreEditForm.aciklama || null,
           updated_at: new Date().toISOString()
@@ -178,11 +240,12 @@ export default function DolapEditModal({
 
       if (error) throw error;
 
-      alert('Hücre güncellendi!');
+      toast.success('Hücre güncellendi!');
       setSelectedHucre(null);
       loadDetayData();
     } catch (error) {
-      alert('Hücre güncellenemedi');
+      console.error('Hücre güncelleme hatası:', error);
+      toast.error('Hücre güncellenemedi');
     }
   };
 
@@ -197,14 +260,29 @@ export default function DolapEditModal({
 
       if (error) throw error;
 
-      alert('Hücre pasif yapıldı!');
+      toast.success('Hücre pasif yapıldı!');
       loadDetayData();
     } catch (error) {
-      alert('Hücre silinemedi');
+      toast.error('Hücre silinemedi');
     }
   };
 
-  // QR kod fonksiyonları
+  const toggleRaf = (rafId: number) => {
+    setExpandedRaflar(prev => 
+      prev.includes(rafId) 
+        ? prev.filter(id => id !== rafId)
+        : [...prev, rafId]
+    );
+  };
+
+  const expandAll = () => {
+    setExpandedRaflar(raflar.map(r => r.id));
+  };
+
+  const collapseAll = () => {
+    setExpandedRaflar([]);
+  };
+
   const handlePrintAllQr = () => {
     setSelectedQrHucreler(hucreler);
     setShowQrPrint(true);
@@ -212,7 +290,16 @@ export default function DolapEditModal({
 
   const handlePrintSingleQr = (hucre: HucreWithMusteriType, e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setSelectedQrHucreler([hucre]);
+    setShowQrPrint(true);
+  };
+
+  const handlePrintRafQr = (rafId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const rafHucreleri = hucreler.filter(h => h.raf_id === rafId);
+    setSelectedQrHucreler(rafHucreleri);
     setShowQrPrint(true);
   };
 
@@ -235,7 +322,22 @@ export default function DolapEditModal({
     }
   });
 
+  // Filtrelenmiş renkler (arama için)
+  const filteredBaslangicRenkler = renkler.filter(renk => 
+    renk.renk_kodu.toLowerCase().includes(baslangicSearch.toLowerCase()) ||
+    (renk.renk_adi && renk.renk_adi.toLowerCase().includes(baslangicSearch.toLowerCase()))
+  );
+
+  const filteredBitisRenkler = renkler.filter(renk => 
+    renk.renk_kodu.toLowerCase().includes(bitisSearch.toLowerCase()) ||
+    (renk.renk_adi && renk.renk_adi.toLowerCase().includes(bitisSearch.toLowerCase()))
+  );
+
   const oda = odalar.find(o => o.id === dolap.oda_id);
+
+  // Seçili renkleri bul
+  const seciliBaslangicRenk = renkler.find(r => r.id === hucreEditForm.renk_baslangic_id);
+  const seciliBitisRenk = renkler.find(r => r.id === hucreEditForm.renk_bitis_id);
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -254,7 +356,6 @@ export default function DolapEditModal({
           </div>
           
           <div className="flex gap-2">
-            {/* QR BUTONU - Tüm hücreler için */}
             <button
               onClick={handlePrintAllQr}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
@@ -356,6 +457,24 @@ export default function DolapEditModal({
                   </h3>
                   
                   <div className="flex gap-3">
+                    {/* ACCORDION KONTROLLERİ */}
+                    <button
+                      type="button"
+                      onClick={expandAll}
+                      className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm flex items-center gap-1"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                      Tümünü Aç
+                    </button>
+                    <button
+                      type="button"
+                      onClick={collapseAll}
+                      className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm flex items-center gap-1"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                      Tümünü Kapat
+                    </button>
+
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                       <input
@@ -397,77 +516,134 @@ export default function DolapEditModal({
                   </div>
                 ) : (
                   <>
-                    {/* HÜCRE LİSTESİ */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-                      {filteredHucreler.map(hucre => {
-                        const raf = raflar.find(r => r.id === hucre.raf_id);
-                        const isMusteri = hucre.musteri_id != null;
+                    {/* ACCORDION RAF LİSTESİ */}
+                    <div className="space-y-3 mb-6">
+                      {raflar.map(raf => {
+                        const rafHucreleri = filteredHucreler.filter(h => h.raf_id === raf.id);
+                        const isExpanded = expandedRaflar.includes(raf.id);
                         
                         return (
-                          <div
-                            key={hucre.id}
-                            className={`rounded-lg p-3 border transition-all cursor-pointer relative group ${
-                              selectedHucre?.id === hucre.id 
-                                ? 'border-blue-500 bg-blue-900/20' 
-                                : isMusteri 
-                                  ? 'border-purple-500 bg-purple-900/10' 
-                                  : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-                            }`}
-                            onClick={() => {
-                              setSelectedHucre(hucre);
-                              setHucreEditForm({
-                                musteri_id: hucre.musteri_id || null,
-                                aktif: hucre.aktif || true,
-                                aciklama: hucre.aciklama || ''
-                              });
-                            }}
-                          >
-                            {/* QR BUTONU - Her hücre için */}
-                            <button
-                              onClick={(e) => handlePrintSingleQr(hucre, e)}
-                              className="absolute top-1 right-1 p-1 bg-gray-700 rounded hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                              title="QR Kod Yazdır"
+                          <div key={raf.id} className="border border-gray-700 rounded-lg overflow-hidden">
+                            {/* RAF HEADER */}
+                            <div 
+                              className="bg-gray-800 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-750"
+                              onClick={() => toggleRaf(raf.id)}
                             >
-                              <QrCode className="h-3 w-3 text-gray-300" />
-                            </button>
-
-                            <div className="flex justify-between items-start">
-                              <div className="font-mono text-sm text-white truncate pr-6">
-                                {hucre.hucre_kodu}
-                              </div>
-                              {isMusteri && (
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-3 w-3 text-purple-400" />
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                                )}
+                                <Layers className="h-5 w-5 text-blue-400" />
+                                <div>
+                                  <span className="font-medium text-white">Raf {raf.raf_kodu}</span>
+                                  <span className="ml-3 text-sm text-gray-400">
+                                    {rafHucreleri.length} hücre
+                                  </span>
                                 </div>
-                              )}
-                            </div>
-                            
-                            {isMusteri && hucre.musteriler && (
-                              <div className="text-xs text-purple-300 truncate mt-1">
-                                {hucre.musteriler.musteri_adi}
                               </div>
-                            )}
-                            
-                            <div className="text-xs text-blue-300 mt-1">
-                              Renk: {hucre.renk_no_baslangic} - {hucre.renk_no_bitis}
-                            </div>
-                            
-                            {raf && (
-                              <div className="text-xs text-gray-500">Raf: {raf.raf_kodu}</div>
-                            )}
-                            
-                            <div className="flex justify-between items-center mt-2">
-                              <div className="text-xs">
-                                <span className={`px-1 py-0.5 rounded ${
-                                  hucre.aktif ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
-                                }`}>
-                                  {hucre.aktif ? 'A' : 'P'}
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-400">
+                                  {rafHucreleri.filter(h => h.musteri_id).length} dolu
                                 </span>
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 0}
+                                <button
+                                  onClick={(e) => handlePrintRafQr(raf.id, e)}
+                                  className="p-1 hover:bg-gray-700 rounded"
+                                  title="Raf QR"
+                                >
+                                  <QrCode className="h-4 w-4 text-purple-400" />
+                                </button>
                               </div>
                             </div>
+
+                            {/* HÜCRELER - DÜZELTİLDİ */}
+                            {isExpanded && (
+                              <div className="p-4 bg-gray-850 border-t border-gray-700">
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                  {rafHucreleri.map(hucre => {
+                                    const isMusteri = hucre.musteri_id != null;
+                                    
+                                    return (
+                                      <div
+                                        key={hucre.id}
+                                        className={`rounded-lg p-3 border transition-all cursor-pointer relative group ${
+                                          selectedHucre?.id === hucre.id 
+                                            ? 'border-blue-500 bg-blue-900/20' 
+                                            : isMusteri 
+                                              ? 'border-purple-500 bg-purple-900/10' 
+                                              : 'bg-gray-800 border-gray-700 hover:border-blue-400'
+                                        }`}
+                                        onClick={() => {
+                                          // String renk kodlarına göre ID'leri bul
+                                          const basRenk = renkler.find(r => r.renk_kodu === hucre.renk_no_baslangic);
+                                          const bitRenk = renkler.find(r => r.renk_kodu === hucre.renk_no_bitis);
+                                          
+                                          setSelectedHucre(hucre);
+                                          setHucreEditForm({
+                                            musteri_id: hucre.musteri_id || null,
+                                            renk_baslangic_id: basRenk?.id || null,
+                                            renk_bitis_id: bitRenk?.id || null,
+                                            kapasite: hucre.kapasite || 50,
+                                            aktif: hucre.aktif || true,
+                                            aciklama: hucre.aciklama || ''
+                                          });
+                                        }}
+                                      >
+                                        {/* QR Butonu */}
+                                        <button
+                                          onClick={(e) => handlePrintSingleQr(hucre, e)}
+                                          className="absolute top-1 right-1 p-1 bg-gray-700 rounded hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                          title="QR Kod Yazdır"
+                                        >
+                                          <QrCode className="h-3 w-3 text-gray-300" />
+                                        </button>
+
+                                        <div className="flex justify-between items-start">
+                                          <div className="font-mono text-sm text-white truncate pr-6">
+                                            {hucre.hucre_kodu}
+                                          </div>
+                                          {isMusteri && (
+                                            <div className="flex items-center gap-1">
+                                              <Users className="h-3 w-3 text-purple-400" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {isMusteri && hucre.musteriler && (
+                                          <div className="text-xs text-purple-300 truncate mt-1">
+                                            {hucre.musteriler.musteri_adi}
+                                          </div>
+                                        )}
+                                        
+                                        {/* RENK ARALIĞI BİLGİSİ - DÜZELTİLDİ */}
+                                        {hucre.renk_no_baslangic && hucre.renk_no_bitis && (
+                                          <div className="text-xs text-blue-300 mt-1 flex items-center gap-1 font-medium">
+                                            <Palette className="h-3 w-3" />
+                                            <span>{hucre.renk_no_baslangic} - {hucre.renk_no_bitis}</span>
+                                          </div>
+                                        )}
+                                        
+                                        {/* KAPASİTE BİLGİSİ */}
+                                        <div className="flex justify-between items-center mt-2">
+                                          <div className="text-xs">
+                                            <span className={`px-1 py-0.5 rounded ${
+                                              hucre.aktif ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
+                                            }`}>
+                                              {hucre.aktif ? 'A' : 'P'}
+                                            </span>
+                                          </div>
+                                          <div className="text-xs text-gray-400 flex items-center gap-1">
+                                            <Package className="h-3 w-3" />
+                                            {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 50}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -475,24 +651,21 @@ export default function DolapEditModal({
                     
                     {/* HÜCRE DÜZENLEME FORMU */}
                     {selectedHucre && (
-                      <div className="bg-gray-800 rounded-lg p-6 border border-blue-700">
+                      <div className="bg-gray-800 rounded-lg p-6 border border-blue-700 mt-4">
                         <div className="flex justify-between items-center mb-4">
                           <h4 className="text-lg font-semibold text-white">
                             Hücre Düzenle: {selectedHucre.hucre_kodu}
                           </h4>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleHucreDelete(selectedHucre.id)}
-                              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 flex items-center gap-1"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              Pasif Yap
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setSelectedHucre(null)}
+                            className="text-gray-400 hover:text-white"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Müşteri Seçici */}
                           <div>
                             <label className="block text-gray-300 text-sm mb-2">Müşteri</label>
                             <select
@@ -512,6 +685,150 @@ export default function DolapEditModal({
                             </select>
                           </div>
                           
+                          {/* BAŞLANGIÇ RENK SEÇİCİ */}
+                          <div className="relative">
+                            <label className="block text-gray-300 text-sm mb-2 flex items-center gap-1">
+                              <Palette className="h-4 w-4 text-purple-400" />
+                              Başlangıç Rengi *
+                            </label>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowBaslangicDropdown(!showBaslangicDropdown)}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-left flex items-center justify-between"
+                              >
+                                <span>
+                                  {seciliBaslangicRenk ? (
+                                    <>{seciliBaslangicRenk.renk_kodu} - {seciliBaslangicRenk.renk_adi}</>
+                                  ) : (
+                                    'Başlangıç rengi seçin'
+                                  )}
+                                </span>
+                                <ChevronsUpDown className="h-4 w-4 text-gray-400" />
+                              </button>
+                              
+                              {showBaslangicDropdown && (
+                                <div className="absolute z-20 mt-1 w-full bg-gray-700 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                  <div className="p-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Renk ara..."
+                                      value={baslangicSearch}
+                                      onChange={(e) => setBaslangicSearch(e.target.value)}
+                                      className="w-full px-3 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                                      autoFocus
+                                    />
+                                  </div>
+                                  <div className="py-1">
+                                    {filteredBaslangicRenkler.map(renk => (
+                                      <button
+                                        key={renk.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setHucreEditForm({...hucreEditForm, renk_baslangic_id: renk.id});
+                                          setShowBaslangicDropdown(false);
+                                          setBaslangicSearch('');
+                                        }}
+                                        className="w-full px-3 py-2 text-left hover:bg-gray-600 text-white text-sm flex items-center justify-between"
+                                      >
+                                        <span>
+                                          <span className="font-mono">{renk.renk_kodu}</span>
+                                          <span className="ml-2 text-gray-300">{renk.renk_adi}</span>
+                                        </span>
+                                        {hucreEditForm.renk_baslangic_id === renk.id && (
+                                          <Check className="h-4 w-4 text-green-400" />
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* BİTİŞ RENK SEÇİCİ */}
+                          <div className="relative">
+                            <label className="block text-gray-300 text-sm mb-2 flex items-center gap-1">
+                              <Palette className="h-4 w-4 text-purple-400" />
+                              Bitiş Rengi *
+                            </label>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowBitisDropdown(!showBitisDropdown)}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-left flex items-center justify-between"
+                              >
+                                <span>
+                                  {seciliBitisRenk ? (
+                                    <>{seciliBitisRenk.renk_kodu} - {seciliBitisRenk.renk_adi}</>
+                                  ) : (
+                                    'Bitiş rengi seçin'
+                                  )}
+                                </span>
+                                <ChevronsUpDown className="h-4 w-4 text-gray-400" />
+                              </button>
+                              
+                              {showBitisDropdown && (
+                                <div className="absolute z-20 mt-1 w-full bg-gray-700 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                  <div className="p-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Renk ara..."
+                                      value={bitisSearch}
+                                      onChange={(e) => setBitisSearch(e.target.value)}
+                                      className="w-full px-3 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                                      autoFocus
+                                    />
+                                  </div>
+                                  <div className="py-1">
+                                    {filteredBitisRenkler.map(renk => (
+                                      <button
+                                        key={renk.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setHucreEditForm({...hucreEditForm, renk_bitis_id: renk.id});
+                                          setShowBitisDropdown(false);
+                                          setBitisSearch('');
+                                        }}
+                                        className="w-full px-3 py-2 text-left hover:bg-gray-600 text-white text-sm flex items-center justify-between"
+                                      >
+                                        <span>
+                                          <span className="font-mono">{renk.renk_kodu}</span>
+                                          <span className="ml-2 text-gray-300">{renk.renk_adi}</span>
+                                        </span>
+                                        {hucreEditForm.renk_bitis_id === renk.id && (
+                                          <Check className="h-4 w-4 text-green-400" />
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Kapasite */}
+                          <div>
+                            <label className="block text-gray-300 text-sm mb-2">
+                              Kapasite (Maksimum Kartela)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={hucreEditForm.kapasite}
+                                onChange={(e) => setHucreEditForm({
+                                  ...hucreEditForm, 
+                                  kapasite: parseInt(e.target.value) || 0
+                                })}
+                                min="1"
+                                max="1000"
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                              />
+                              <span className="text-gray-400 text-sm">kartela</span>
+                            </div>
+                          </div>
+                          
+                          {/* Aktif Checkbox */}
                           <div className="flex items-center gap-3">
                             <input
                               type="checkbox"
@@ -522,6 +839,7 @@ export default function DolapEditModal({
                             <label className="text-gray-300 text-sm">Aktif</label>
                           </div>
                           
+                          {/* Açıklama */}
                           <div className="md:col-span-2">
                             <label className="block text-gray-300 text-sm mb-2">Açıklama</label>
                             <textarea
@@ -533,6 +851,43 @@ export default function DolapEditModal({
                           </div>
                         </div>
                         
+                        {/* Validasyon uyarıları */}
+                        <div className="mt-3 space-y-1">
+                          {(!hucreEditForm.renk_baslangic_id || !hucreEditForm.renk_bitis_id) && (
+                            <div className="text-amber-400 text-sm flex items-center gap-1">
+                              <AlertTriangle className="h-4 w-4" />
+                              Renk aralığı seçilmedi! (Başlangıç ve bitiş zorunlu)
+                            </div>
+                          )}
+                          {hucreEditForm.renk_baslangic_id && hucreEditForm.renk_bitis_id && 
+                            seciliBaslangicRenk && seciliBitisRenk && 
+                            seciliBaslangicRenk.renk_kodu > seciliBitisRenk.renk_kodu && (
+                            <div className="text-red-400 text-sm flex items-center gap-1">
+                              <AlertTriangle className="h-4 w-4" />
+                              Başlangıç rengi ({seciliBaslangicRenk.renk_kodu}) bitiş renginden ({seciliBitisRenk.renk_kodu}) büyük olamaz!
+                            </div>
+                          )}
+                          {hucreEditForm.kapasite > 500 && (
+                            <div className="text-amber-400 text-sm flex items-center gap-1">
+                              <AlertTriangle className="h-4 w-4" />
+                              Çok yüksek kapasite! ({hucreEditForm.kapasite} kartela)
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Seçili aralık özeti */}
+                        {seciliBaslangicRenk && seciliBitisRenk && seciliBaslangicRenk.renk_kodu <= seciliBitisRenk.renk_kodu && (
+                          <div className="mt-3 p-2 bg-gray-700 rounded-lg">
+                            <div className="text-xs text-gray-300">Seçili Renk Aralığı:</div>
+                            <div className="text-sm text-white font-medium">
+                              {seciliBaslangicRenk.renk_adi} ({seciliBaslangicRenk.renk_kodu}) 
+                              {' → '} 
+                              {seciliBitisRenk.renk_adi} ({seciliBitisRenk.renk_kodu})
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Butonlar */}
                         <div className="flex gap-3 mt-6">
                           <button
                             type="button"
@@ -544,10 +899,25 @@ export default function DolapEditModal({
                           <button
                             type="button"
                             onClick={() => handleHucreUpdate(selectedHucre.id)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+                            disabled={
+                              !hucreEditForm.renk_baslangic_id || 
+                              !hucreEditForm.renk_bitis_id || 
+                              (seciliBaslangicRenk && seciliBitisRenk && 
+                               seciliBaslangicRenk.renk_kodu > seciliBitisRenk.renk_kodu) ||
+                              hucreEditForm.kapasite < 1
+                            }
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Save className="h-4 w-4" />
                             Hücreyi Kaydet
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleHucreDelete(selectedHucre.id)}
+                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Pasif Yap
                           </button>
                         </div>
                       </div>

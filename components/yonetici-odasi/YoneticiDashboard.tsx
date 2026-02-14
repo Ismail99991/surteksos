@@ -28,7 +28,7 @@ import YoneticiIstatistikler from './YoneticiIstatistikler';
 import KullaniciYonetimi from './KullaniciYonetimi';
 import OdaYonetimi from './OdaYonetimi';
 import YetkiYonetimi from './YetkiYonetimi';
-import DolapYonetimi from '@/components/DolapYonetimi';
+import DolapYonetimi from '@/components/dolap/DolapYonetimi';
 import RaporAlma from '@/components/rapor/RaporAlma'; // Rapor component'i eklendi
 
 const supabase = createClient();
