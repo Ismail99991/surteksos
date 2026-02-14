@@ -93,15 +93,59 @@ export default function KartelaTransfer({
   }, [autoResetTimeout]);
 
   // STEP 1: Kartela QR Okuma
-  const handleKartelaScan = async (kartelaKodu: string) => {
-    setLoading(true);
-    setError(null);
+  // STEP 1: Kartela QR Okuma
+const handleKartelaScan = async (kartelaKodu: string) => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const temizKod = kartelaKodu.trim();
     
-    try {
-      // Önce kartelayı bul (renk_kodu ile)
-         const temizKod = kartelaKodu.trim();
-      
-      let query = supabase
+    // 1. KARTELA_NO ile tam eşleşme ara
+    let { data, error } = await supabase
+      .from('kartelalar')
+      .select(`
+        *,
+        renk_masalari!left (
+          pantone_kodu,
+          hex_kodu,
+          renk_adi
+        ),
+        hucreler!left (
+          id,
+          hucre_kodu,
+          hucre_adi,
+          kapasite,
+          mevcut_kartela_sayisi,
+          raf_id,
+          aktif,
+          raflar!left (
+            raf_kodu,
+            raf_adi,
+            dolap_id,
+            dolaplar!left (
+              dolap_kodu,
+              dolap_adi,
+              oda_id,
+              odalar!left (
+                oda_kodu,
+                oda_adi,
+                kat,
+                bina
+              )
+            )
+          )
+        )
+      `)
+      .eq('silindi', false)
+      .eq('kartela_no', temizKod)  // Tam eşleşme
+      .maybeSingle();  // Tek kayıt döndür, yoksa null
+
+    if (error) throw error;
+    
+    // 2. Kartela_no ile bulamazsa RENK_KODU ile tam eşleşme ara
+    if (!data) {
+      const { data: renkData, error: renkError } = await supabase
         .from('kartelalar')
         .select(`
           *,
@@ -137,44 +181,44 @@ export default function KartelaTransfer({
           )
         `)
         .eq('silindi', false)
-        .or(`kartela_no.eq.${temizKod},renk_kodu.eq.${temizKod}`)
-        .limit(1); // Sadece ilk eşleşmeyi al
-
-          const { data, error } = await query; 
-      
-       if (error) throw error;
-    
-       if (!data || data.length === 0) {
-         throw new Error('Kartela bulunamadı!');
-      }
-
-      const kartelaData = data[0];
-
-      // Kartela kontrolü
-      if (kartelaData.durum === 'KULLANIM_DISI') {
-        throw new Error('Bu kartela kullanım dışı!');
-      }
-
-      if (kartelaData.durum === 'KARTELA_ARSIV') {
-        throw new Error('Bu kartela arşivde!');
-      }
-
-      setKartela(kartelaData as any);
-      setCurrentStep('hucre');
-      
-      // Hücre input'una otomatik odaklan
-      setTimeout(() => {
-        hucreInputRef.current?.focus();
-      }, 100);
-      
-    } catch (error: any) {
-      setError(error.message || 'Kartela okunurken hata oluştu');
-      setCurrentStep('error');
-    } finally {
-      setLoading(false);
+        .eq('renk_kodu', temizKod)  // Tam eşleşme
+        .maybeSingle();  // Tek kayıt döndür, yoksa null
+        
+      if (renkError) throw renkError;
+      data = renkData;
     }
-  };
+    
+    // 3. Hala bulamadıysa hata ver
+    if (!data) {
+      throw new Error('Kartela bulunamadı!');
+    }
 
+    const kartelaData = data;
+
+    // Kartela kontrolü
+    if (kartelaData.durum === 'KULLANIM_DISI') {
+      throw new Error('Bu kartela kullanım dışı!');
+    }
+
+    if (kartelaData.durum === 'KARTELA_ARSIV') {
+      throw new Error('Bu kartela arşivde!');
+    }
+
+    setKartela(kartelaData as any);
+    setCurrentStep('hucre');
+    
+    // Hücre input'una otomatik odaklan
+    setTimeout(() => {
+      hucreInputRef.current?.focus();
+    }, 100);
+    
+  } catch (error: any) {
+    setError(error.message || 'Kartela okunurken hata oluştu');
+    setCurrentStep('error');
+  } finally {
+    setLoading(false);
+  }
+};
   // STEP 2: Hücre QR Okuma
   const handleHucreScan = async (hucreKodu: string) => {
     setLoading(true);
