@@ -15,7 +15,9 @@ import {
   AlertTriangle,
   Info,
   Camera,
-  Scan
+  Scan,
+  ArrowRight,
+  X
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
@@ -367,8 +369,8 @@ export default function KartelaTransfer({
         resetTransfer();
       }
       
-      // Escape tuşu ile iptal
-      if (currentStep === 'confirm' && e.key === 'Escape') {
+      // ESCAPE TUŞU İLE TÜM ADIMLARDA BAŞA DÖN
+      if ((currentStep === 'kartela' || currentStep === 'hucre' || currentStep === 'confirm') && e.key === 'Escape') {
         e.preventDefault();
         resetTransfer();
       }
@@ -459,13 +461,15 @@ export default function KartelaTransfer({
         <h2 className="text-2xl font-bold text-gray-900">Kartela Transfer Sistemi</h2>
         <p className="text-gray-600 mt-2">QR kodları ile kartela al/ver işlemi yapın</p>
         
-        {/* Klavye Kısayolları Göstergesi */}
-        <div className="mt-2 text-xs text-gray-500">
-          <span className="inline-flex items-center gap-1 mr-3">
-            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> Onayla
+        {/* KLAVYE KISAYOLLARI GÖSTERGESİ - ESC EKLENDİ */}
+        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd>
+            <ArrowRight className="h-3 w-3" /> Onayla
           </span>
-          <span className="inline-flex items-center gap-1">
-            <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd> İptal
+          <span className="flex items-center gap-1">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd>
+            <X className="h-3 w-3" /> İptal (Tüm adımlarda)
           </span>
         </div>
         
@@ -504,9 +508,15 @@ export default function KartelaTransfer({
       {currentStep === 'kartela' && (
         <div className="text-center py-8">
           <div className="mb-6">
-            <div className="text-6xl mb-4">📦</div>
+            <Package className="h-16 w-16 text-blue-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">1. Kartela QR Kodunu Okutun</h3>
             <p className="text-gray-600">Kartela barkodunu taratın veya kartela numarasını girin</p>
+            {/* ESC BİLGİSİ EKLENDİ */}
+            <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
+              <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd>
+              <X className="h-3 w-3" />
+              tuşu ile iptal edip başa dönebilirsiniz
+            </p>
           </div>
           
           <div className="max-w-md mx-auto space-y-4">
@@ -519,7 +529,11 @@ export default function KartelaTransfer({
               QR Kodunu Tara
             </button>
             
-            <div className="text-center text-gray-500">veya</div>
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <div className="h-px w-12 bg-gray-300"></div>
+              <span className="text-sm">VEYA</span>
+              <div className="h-px w-12 bg-gray-300"></div>
+            </div>
             
             {/* Manuel Giriş */}
             <div>
@@ -560,9 +574,15 @@ export default function KartelaTransfer({
       {currentStep === 'hucre' && kartela && (
         <div className="text-center py-8">
           <div className="mb-6">
-            <div className="text-6xl mb-4">📍</div>
+            <MapPin className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">2. Hedef Hücre QR Kodunu Okutun</h3>
             <p className="text-gray-600">Kartelayı yerleştireceğiniz hücrenin QR kodunu taratın</p>
+            {/* ESC BİLGİSİ EKLENDİ */}
+            <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
+              <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd>
+              <X className="h-3 w-3" />
+              tuşu ile iptal edip başa dönebilirsiniz
+            </p>
           </div>
           
           {/* Seçilen Kartela Bilgisi */}
@@ -600,7 +620,11 @@ export default function KartelaTransfer({
               Hücre QR Kodunu Tara
             </button>
             
-            <div className="text-center text-gray-500">veya</div>
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <div className="h-px w-12 bg-gray-300"></div>
+              <span className="text-sm">VEYA</span>
+              <div className="h-px w-12 bg-gray-300"></div>
+            </div>
             
             <div>
               <input
@@ -641,11 +665,13 @@ export default function KartelaTransfer({
       {currentStep === 'confirm' && kartela && hucre && (
         <div className="text-center py-8">
           <div className="mb-6">
-            <div className="text-6xl mb-4">✅</div>
+            <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">3. Transferi Onaylayın</h3>
             <p className="text-gray-600">Aşağıdaki bilgileri kontrol edip transferi onaylayın</p>
-            <p className="text-xs text-gray-500 mt-2">
-              <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> tuşuna basarak onaylayabilirsiniz
+            <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
+              <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd>
+              <ArrowRight className="h-3 w-3" />
+              tuşuna basarak onaylayabilirsiniz
             </p>
           </div>
           
@@ -653,7 +679,10 @@ export default function KartelaTransfer({
             {/* Kartela Bilgisi */}
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="text-left">
-                <div className="font-bold text-gray-900 mb-2">📦 TAŞINACAK KARTELA</div>
+                <div className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  TAŞINACAK KARTELA
+                </div>
                 <div className="font-mono font-bold text-blue-700">{kartela.kartela_no || `KRT-${kartela.id}`}</div>
                 <div className="text-sm text-gray-700">
                   <span className="font-mono">{kartela.renk_kodu}</span>
@@ -677,7 +706,10 @@ export default function KartelaTransfer({
             {/* Hücre Bilgisi */}
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="text-left">
-                <div className="font-bold text-gray-900 mb-2">📍 HEDEF HÜCRE</div>
+                <div className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  HEDEF HÜCRE
+                </div>
                 {renderHucreKonum()}
                 <div className="text-xs text-gray-500 mt-2">
                   Kapasite Durumu: {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 0}
@@ -689,18 +721,24 @@ export default function KartelaTransfer({
             <div className="flex gap-4 pt-4">
               <button
                 onClick={resetTransfer}
-                className="flex-1 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50"
+                className="flex-1 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2"
                 disabled={loading}
               >
+                <X className="h-4 w-4" />
                 İptal (Esc)
               </button>
               <button
                 ref={confirmButtonRef}
                 onClick={confirmTransfer}
                 disabled={loading}
-                className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 focus:ring-4 focus:ring-green-300 outline-none"
+                className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 focus:ring-4 focus:ring-green-300 outline-none flex items-center justify-center gap-2"
               >
-                {loading ? 'İşleniyor...' : 'Transferi Onayla (Enter)'}
+                {loading ? 'İşleniyor...' : (
+                  <>
+                    Transferi Onayla
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -710,25 +748,32 @@ export default function KartelaTransfer({
       {/* SUCCESS */}
       {currentStep === 'success' && (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4 text-green-500">✅</div>
+          <CheckCircle className="h-24 w-24 text-green-500 mx-auto mb-4" />
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Transfer Başarılı!</h3>
           <p className="text-gray-600 mb-6">{successMessage}</p>
-          <p className="text-xs text-gray-500 mb-4">
-            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> tuşuna basarak yeni transfer yapabilirsiniz
+          <p className="text-xs text-gray-500 mb-4 flex items-center justify-center gap-1">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd>
+            <ArrowRight className="h-3 w-3" />
+            tuşuna basarak yeni transfer yapabilirsiniz
           </p>
           
           {kartela && hucre && (
             <div className="max-w-md mx-auto p-4 bg-green-50 rounded-lg border border-green-200 mb-6">
               <div className="text-left">
-                <div className="font-bold text-green-800 mb-2">Transfer Özeti:</div>
+                <div className="font-bold text-green-800 mb-2 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Transfer Özeti:
+                </div>
                 <div className="text-sm">
-                  <div className="mb-2">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Package className="h-4 w-4 text-gray-500" />
                     <span className="font-medium">Kartela:</span> {kartela.kartela_no} • {kartela.renk_kodu}
                     {kartela.renk_masalari?.renk_adi && (
                       <span> • {kartela.renk_masalari.renk_adi}</span>
                     )}
                   </div>
-                  <div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500" />
                     <span className="font-medium">Yeni Hücre:</span> {hucre.hucre_kodu}
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
@@ -741,8 +786,9 @@ export default function KartelaTransfer({
           
           <button
             onClick={resetTransfer}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 outline-none"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 outline-none flex items-center gap-2 mx-auto"
           >
+            <RefreshCw className="h-4 w-4" />
             Yeni Transfer Yap
           </button>
         </div>
@@ -751,24 +797,31 @@ export default function KartelaTransfer({
       {/* ERROR */}
       {currentStep === 'error' && (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4 text-red-500">❌</div>
+          <XCircle className="h-24 w-24 text-red-500 mx-auto mb-4" />
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Hata Oluştu!</h3>
-          <p className="text-red-600 mb-6">{error}</p>
-          <p className="text-xs text-gray-500 mb-4">
-            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> tuşuna basarak tekrar deneyin
+          <div className="flex items-center justify-center gap-2 text-red-600 mb-6">
+            <AlertTriangle className="h-5 w-5" />
+            <p>{error}</p>
+          </div>
+          <p className="text-xs text-gray-500 mb-4 flex items-center justify-center gap-1">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd>
+            <ArrowRight className="h-3 w-3" />
+            tuşuna basarak tekrar deneyin
           </p>
           
           <div className="flex gap-4 justify-center">
             <button
               onClick={resetTransfer}
-              className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 outline-none"
+              className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 outline-none flex items-center gap-2"
             >
+              <RefreshCw className="h-4 w-4" />
               Başa Dön (Enter)
             </button>
             <button
               onClick={() => setCurrentStep('kartela')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 outline-none"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 outline-none flex items-center gap-2"
             >
+              <Camera className="h-4 w-4" />
               Tekrar Dene
             </button>
           </div>
