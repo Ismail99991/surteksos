@@ -99,6 +99,8 @@ export default function KartelaTransfer({
     
     try {
       // Önce kartelayı bul (renk_kodu ile)
+         const temizKod = kartelaKodu.trim();
+      
       let query = supabase
         .from('kartelalar')
         .select(`
@@ -134,22 +136,16 @@ export default function KartelaTransfer({
             )
           )
         `)
-        .eq('silindi', false);
+        .eq('silindi', false)
+        .or(`kartela_no.eq.${temizKod},renk_kodu.eq.${temizKod}`)
+        .limit(1); // Sadece ilk eşleşmeyi al
 
-      // Eğer sayısal değer girildiyse (23011737 gibi)
-      if (!isNaN(Number(kartelaKodu))) {
-        const renkNo = parseInt(kartelaKodu);
-        query = query.or(`kartela_no.eq.${kartelaKodu},renk_kodu.ilike.%${renkNo}%`);
-      } else {
-        query = query.or(`kartela_no.eq.${kartelaKodu},renk_kodu.ilike.%${kartelaKodu}%`);
-      }
-
-      const { data, error } = await query.limit(1);
-
-      if (error) throw error;
+          const { data, error } = await query; 
       
-      if (!data || data.length === 0) {
-        throw new Error('Kartela bulunamadı!');
+       if (error) throw error;
+    
+       if (!data || data.length === 0) {
+         throw new Error('Kartela bulunamadı!');
       }
 
       const kartelaData = data[0];
