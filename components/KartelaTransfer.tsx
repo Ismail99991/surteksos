@@ -75,9 +75,20 @@ export default function KartelaTransfer({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [scannerActive, setScannerActive] = useState(false);
+  const [autoResetTimeout, setAutoResetTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const kartelaInputRef = useRef<HTMLInputElement>(null);
   const hucreInputRef = useRef<HTMLInputElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-reset timer'ı temizle
+  useEffect(() => {
+    return () => {
+      if (autoResetTimeout) {
+        clearTimeout(autoResetTimeout);
+      }
+    };
+  }, [autoResetTimeout]);
 
   // STEP 1: Kartela QR Okuma
   const handleKartelaScan = async (kartelaKodu: string) => {
@@ -153,6 +164,11 @@ export default function KartelaTransfer({
       setKartela(kartelaData as any);
       setCurrentStep('hucre');
       
+      // Hücre input'una otomatik odaklan
+      setTimeout(() => {
+        hucreInputRef.current?.focus();
+      }, 100);
+      
     } catch (error: any) {
       setError(error.message || 'Kartela okunurken hata oluştu');
       setCurrentStep('error');
@@ -216,6 +232,11 @@ export default function KartelaTransfer({
 
       setHucre(hucreData as any);
       setCurrentStep('confirm');
+      
+      // Onay butonuna otomatik odaklan
+      setTimeout(() => {
+        confirmButtonRef.current?.focus();
+      }, 100);
       
     } catch (error: any) {
       setError(error.message || 'Hücre okunurken hata oluştu');
@@ -290,6 +311,13 @@ export default function KartelaTransfer({
       
       if (onSuccess) onSuccess();
       
+      // 3 saniye sonra otomatik olarak başa dön
+      const timeout = setTimeout(() => {
+        resetTransfer();
+      }, 3000);
+      
+      setAutoResetTimeout(timeout);
+      
     } catch (error: any) {
       setError(error.message || 'Transfer sırasında hata oluştu');
       setCurrentStep('error');
@@ -305,7 +333,53 @@ export default function KartelaTransfer({
     setError(null);
     setSuccessMessage(null);
     setCurrentStep('kartela');
+    
+    // Kartela input'una odaklan
+    setTimeout(() => {
+      kartelaInputRef.current?.focus();
+    }, 100);
+    
+    // Timer'ı temizle
+    if (autoResetTimeout) {
+      clearTimeout(autoResetTimeout);
+      setAutoResetTimeout(null);
+    }
   };
+
+  // Klavye olaylarını dinle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Sadece confirm adımında ve loading değilken Enter tuşuna basıldığında
+      if (currentStep === 'confirm' && !loading && e.key === 'Enter') {
+        e.preventDefault(); // Form submit'i engelle
+        confirmTransfer();
+      }
+      
+      // Success adımında Enter'a basıldığında başa dön
+      if (currentStep === 'success' && e.key === 'Enter') {
+        e.preventDefault();
+        resetTransfer();
+      }
+      
+      // Error adımında Enter'a basıldığında başa dön
+      if (currentStep === 'error' && e.key === 'Enter') {
+        e.preventDefault();
+        resetTransfer();
+      }
+      
+      // Escape tuşu ile iptal
+      if (currentStep === 'confirm' && e.key === 'Escape') {
+        e.preventDefault();
+        resetTransfer();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [currentStep, loading, confirmTransfer]);
 
   // QR Scanner simülasyonu (gerçek kamera API'si eklenebilir)
   const simulateQRScan = (type: 'kartela' | 'hucre') => {
@@ -328,6 +402,19 @@ export default function KartelaTransfer({
   const handleHucreManual = () => {
     const value = hucreInputRef.current?.value;
     if (value) handleHucreScan(value);
+  };
+
+  // Enter tuşu ile manuel giriş
+  const handleKartelaKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleKartelaManual();
+    }
+  };
+
+  const handleHucreKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleHucreManual();
+    }
   };
 
   // Kartela konum bilgisi
@@ -371,6 +458,16 @@ export default function KartelaTransfer({
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Kartela Transfer Sistemi</h2>
         <p className="text-gray-600 mt-2">QR kodları ile kartela al/ver işlemi yapın</p>
+        
+        {/* Klavye Kısayolları Göstergesi */}
+        <div className="mt-2 text-xs text-gray-500">
+          <span className="inline-flex items-center gap-1 mr-3">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> Onayla
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd> İptal
+          </span>
+        </div>
         
         {/* İşlem Adımları */}
         <div className="flex justify-center mt-6">
@@ -431,7 +528,8 @@ export default function KartelaTransfer({
                 type="text"
                 placeholder="Kartela no veya renk kodu girin (örn: 23011737.1)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                onKeyPress={(e) => e.key === 'Enter' && handleKartelaManual()}
+                onKeyPress={handleKartelaKeyPress}
+                autoFocus
               />
               <button
                 onClick={handleKartelaManual}
@@ -510,7 +608,8 @@ export default function KartelaTransfer({
                 type="text"
                 placeholder="Hücre kodu girin (örn: ARSIV-HUCRE-01)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                onKeyPress={(e) => e.key === 'Enter' && handleHucreManual()}
+                onKeyPress={handleHucreKeyPress}
+                autoFocus
               />
               <button
                 onClick={handleHucreManual}
@@ -545,6 +644,9 @@ export default function KartelaTransfer({
             <div className="text-6xl mb-4">✅</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">3. Transferi Onaylayın</h3>
             <p className="text-gray-600">Aşağıdaki bilgileri kontrol edip transferi onaylayın</p>
+            <p className="text-xs text-gray-500 mt-2">
+              <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> tuşuna basarak onaylayabilirsiniz
+            </p>
           </div>
           
           <div className="max-w-md mx-auto space-y-6">
@@ -590,14 +692,15 @@ export default function KartelaTransfer({
                 className="flex-1 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50"
                 disabled={loading}
               >
-                İptal
+                İptal (Esc)
               </button>
               <button
+                ref={confirmButtonRef}
                 onClick={confirmTransfer}
                 disabled={loading}
-                className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 focus:ring-4 focus:ring-green-300 outline-none"
               >
-                {loading ? 'İşleniyor...' : 'Transferi Onayla'}
+                {loading ? 'İşleniyor...' : 'Transferi Onayla (Enter)'}
               </button>
             </div>
           </div>
@@ -610,6 +713,9 @@ export default function KartelaTransfer({
           <div className="text-6xl mb-4 text-green-500">✅</div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Transfer Başarılı!</h3>
           <p className="text-gray-600 mb-6">{successMessage}</p>
+          <p className="text-xs text-gray-500 mb-4">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> tuşuna basarak yeni transfer yapabilirsiniz
+          </p>
           
           {kartela && hucre && (
             <div className="max-w-md mx-auto p-4 bg-green-50 rounded-lg border border-green-200 mb-6">
@@ -635,7 +741,7 @@ export default function KartelaTransfer({
           
           <button
             onClick={resetTransfer}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 outline-none"
           >
             Yeni Transfer Yap
           </button>
@@ -648,17 +754,20 @@ export default function KartelaTransfer({
           <div className="text-6xl mb-4 text-red-500">❌</div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Hata Oluştu!</h3>
           <p className="text-red-600 mb-6">{error}</p>
+          <p className="text-xs text-gray-500 mb-4">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd> tuşuna basarak tekrar deneyin
+          </p>
           
           <div className="flex gap-4 justify-center">
             <button
               onClick={resetTransfer}
-              className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50"
+              className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 outline-none"
             >
-              Başa Dön
+              Başa Dön (Enter)
             </button>
             <button
               onClick={() => setCurrentStep('kartela')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 outline-none"
             >
               Tekrar Dene
             </button>
