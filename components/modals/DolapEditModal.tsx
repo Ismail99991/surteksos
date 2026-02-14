@@ -225,12 +225,14 @@ export default function DolapEditModal({
     }
     
     try {
+       const baslangicNo = parseInt(baslangicRenk.renk_kodu.replace(/\D/g, ''));
+       const bitisNo = parseInt(bitisRenk.renk_kodu.replace(/\D/g, ''));
       const { error } = await supabase
         .from('hucreler')
         .update({
           musteri_id: hucreEditForm.musteri_id,
-          renk_no_baslangic: baslangicRenk.renk_kodu,  // STRING olarak kaydet
-          renk_no_bitis: bitisRenk.renk_kodu,          // STRING olarak kaydet
+          renk_no_baslangic: baslangicNo,  // STRING olarak kaydet
+          renk_no_bitis: bitisNo,          // STRING olarak kaydet
           kapasite: hucreEditForm.kapasite,
           aktif: hucreEditForm.aktif,
           aciklama: hucreEditForm.aciklama || null,
@@ -576,8 +578,14 @@ export default function DolapEditModal({
                                         }`}
                                         onClick={() => {
                                           // String renk kodlarına göre ID'leri bul
-                                          const basRenk = renkler.find(r => r.renk_kodu === hucre.renk_no_baslangic);
-                                          const bitRenk = renkler.find(r => r.renk_kodu === hucre.renk_no_bitis);
+                                          const basRenk = renkler.find(r => {
+                                            const renkNo = parseInt(r.renk_kodu.replace(/\D/g, ''));
+                                            return renkNo === hucre.renk_no_baslangic;
+                                          });
+                                          const bitRenk = renkler.find(r => {
+                                            const renkNo = parseInt(r.renk_kodu.replace(/\D/g, ''));
+                                            return renkNo === hucre.renk_no_bitis;
+                                          });
                                           
                                           setSelectedHucre(hucre);
                                           setHucreEditForm({
