@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
-import KartelaTransfer from '@/components/KartelaTransfer' // YENİ: Transfer component'ini import edin
+import KartelaTransfer from '@/components/KartelaTransfer'
+import KartelaCRUD from '@/components/kartela/KartelaCRUD' // YENİ: Import ettik!
 import { QrCode, Search, Package, Home, ArrowRightLeft, X } from 'lucide-react'
 
 // Supabase client
@@ -16,7 +17,7 @@ const supabase = createClient()
 type UserType = Database['public']['Tables']['kullanicilar']['Row']
 type RoomType = Database['public']['Tables']['odalar']['Row']
 
-type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor'
+type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor' | 'kartela-crud' // YENİ: 'kartela-crud' eklendi
 
 export default function KartelaOdasiPage() {
   const router = useRouter()
@@ -27,6 +28,9 @@ export default function KartelaOdasiPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
   const [fullscreenTransfer, setFullscreenTransfer] = useState(false)
+  
+  // YENİ: Başarı mesajları için state
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   
   useEffect(() => {
     checkSessionAndLoadData()
@@ -127,6 +131,11 @@ export default function KartelaOdasiPage() {
   const closeFullscreenTransfer = () => {
     setFullscreenTransfer(false)
     setActiveTab('dashboard')
+  }
+  
+  // YENİ: Başarı mesajını temizle
+  const clearSuccessMessage = () => {
+    setSuccessMessage(null)
   }
   
   if (loading) {
@@ -260,36 +269,85 @@ export default function KartelaOdasiPage() {
         </div>
       </header>
       
-      {/* Navigation Tabs */}
+      {/* YENİ: Başarı Mesajı */}
+      {successMessage && (
+        <div className="container mx-auto px-4 mt-4">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {successMessage}
+            </div>
+            <button onClick={clearSuccessMessage} className="text-green-700 hover:text-green-900">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Navigation Tabs - GÜNCELLENDİ */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4">
           <div className="flex overflow-x-auto">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${activeTab === 'dashboard' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
+                activeTab === 'dashboard' 
+                  ? 'text-blue-600 border-b-2 border-blue-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <Home className="h-4 w-4" />
               Dashboard
             </button>
+            
             <button
               onClick={() => setActiveTab('search')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${activeTab === 'search' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
+                activeTab === 'search' 
+                  ? 'text-blue-600 border-b-2 border-blue-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <Search className="h-4 w-4" />
               Kartela Arama
             </button>
+            
+            {/* YENİ: Kartela CRUD Sekmesi */}
             <button
-              onClick={openFullscreenTransfer}
-              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${activeTab === 'transfer' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              <ArrowRightLeft className="h-4 w-4" />
-              Kartela Transfer (Tam Ekran)
-            </button>
-            <button
-              onClick={() => setActiveTab('rapor')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${activeTab === 'rapor' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('kartela-crud')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
+                activeTab === 'kartela-crud' 
+                  ? 'text-green-600 border-b-2 border-green-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <Package className="h-4 w-4" />
+              Kartela Yönetimi
+            </button>
+            
+            <button
+              onClick={openFullscreenTransfer}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
+                activeTab === 'transfer' 
+                  ? 'text-purple-600 border-b-2 border-purple-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Transfer (Tam Ekran)
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('rapor')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
+                activeTab === 'rapor' 
+                  ? 'text-orange-600 border-b-2 border-orange-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <QrCode className="h-4 w-4" />
               Raporlar
             </button>
           </div>
@@ -361,16 +419,20 @@ export default function KartelaOdasiPage() {
                   <p className="text-sm opacity-90 mt-2">Detaylı arama yap</p>
                 </button>
                 
-                <button className="p-6 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl hover:shadow-lg transition-all text-left">
-                  <QrCode className="h-8 w-8 mb-4" />
-                  <h3 className="font-bold text-lg">QR Üret</h3>
-                  <p className="text-sm opacity-90 mt-2">Yeni kartela QR'ı</p>
+                {/* YENİ: Kartela Yönetimi Hızlı Butonu */}
+                <button
+                  onClick={() => setActiveTab('kartela-crud')}
+                  className="p-6 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg transition-all text-left"
+                >
+                  <Package className="h-8 w-8 mb-4" />
+                  <h3 className="font-bold text-lg">Kartela Yönetimi</h3>
+                  <p className="text-sm opacity-90 mt-2">Ekle, düzenle, sil, listele</p>
                 </button>
                 
                 <button className="p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-left">
-                  <Package className="h-8 w-8 mb-4" />
-                  <h3 className="font-bold text-lg">Stok Raporu</h3>
-                  <p className="text-sm opacity-90 mt-2">Anlık doluluk oranı</p>
+                  <QrCode className="h-8 w-8 mb-4" />
+                  <h3 className="font-bold text-lg">QR Üret</h3>
+                  <p className="text-sm opacity-90 mt-2">Yeni kartela QR'ı</p>
                 </button>
               </div>
             </div>
@@ -411,11 +473,11 @@ export default function KartelaOdasiPage() {
                   </p>
                 </div>
                 <button
-                  onClick={openFullscreenTransfer}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:shadow-md flex items-center gap-2"
+                  onClick={() => setActiveTab('kartela-crud')}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                 >
-                  <ArrowRightLeft className="h-4 w-4" />
-                  Transfer Yap
+                  <Package className="h-4 w-4" />
+                  Yönetime Git
                 </button>
               </div>
               <KartelaSearch 
@@ -425,18 +487,60 @@ export default function KartelaOdasiPage() {
             </div>
           </div>
         )}
-      </main>
-
-      {activeTab === 'rapor' && (
-        <div className="bg-white rounded-xl shadow p-1">
-          <div className="p-5">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Raporlar</h2>
-            <RaporAlma 
-            currentOdaId={roomData.id} 
-            currentUserId={userData.id} />
+        
+        {/* YENİ: Kartela CRUD Tab */}
+        {activeTab === 'kartela-crud' && (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Package className="h-6 w-6 text-green-600" />
+                    Kartela Yönetim Paneli
+                  </h2>
+                  <p className="text-gray-600">
+                    Kartela ekleme, düzenleme, silme, arşivleme ve listeleme işlemleri
+                  </p>
+                </div>
+                <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
+                  <span className="text-sm text-gray-600">Personel:</span>
+                  <span className="ml-2 font-semibold text-green-700">{userData.ad}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {/* KartelaCRUD Component'i */}
+              <KartelaCRUD 
+                currentUserId={userData.id}
+                currentOdaId={roomData.id}
+                onKartelaEklendi={() => {
+                  setSuccessMessage('Kartela başarıyla eklendi!')
+                }}
+                onKartelaGuncellendi={() => {
+                  setSuccessMessage('Kartela başarıyla güncellendi!')
+                }}
+                onKartelaSilindi={() => {
+                  setSuccessMessage('Kartela arşive alındı!')
+                }}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        
+        {/* Rapor Tab */}
+        {activeTab === 'rapor' && (
+          <div className="bg-white rounded-xl shadow p-1">
+            <div className="p-5">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Raporlar</h2>
+              <RaporAlma 
+                currentOdaId={roomData.id} 
+                currentUserId={userData.id} 
+              />
+            </div>
+          </div>
+        )}
+      </main>
       
       <footer className="mt-12 py-6 border-t bg-white">
         <div className="container mx-auto px-4">
