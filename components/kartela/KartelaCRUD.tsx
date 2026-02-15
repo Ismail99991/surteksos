@@ -221,18 +221,31 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
       if (error) throw error
       
       // Renk masasından renk adını getir (eğer boşsa)
-      const enrichedData = await Promise.all((data || []).map(async (kartela) => {
-        if (!kartela.renk_adi && kartela.renk_kodu) {
-          const { data: renkData } = await supabase
-            .from('renk_masalari')
-            .select('renk_adi')
-            .eq('renk_kodu', kartela.renk_kodu)
-            .single()
-          
-          return { ...kartela, renk_adi: renkData?.renk_adi || kartela.renk_kodu }
-        }
-        return kartela
-      }))
+      const enrichedData = await Promise.all((data || []).map(async (kartela: any) => {
+  // TÜM ID ALANLARINI NUMBER'A ÇEVİR
+  const cleanedKartela = {
+    ...kartela,
+    musteri_id: kartela.musteri_id ? Number(kartela.musteri_id) : null,
+    hucre_id: kartela.hucre_id ? Number(kartela.hucre_id) : null,
+    olusturan_kullanici_id: kartela.olusturan_kullanici_id ? Number(kartela.olusturan_kullanici_id) : null,
+    son_kullanan_kullanici_id: kartela.son_kullanan_kullanici_id ? Number(kartela.son_kullanan_kullanici_id) : null,
+    arsive_alan_kullanici_id: kartela.arsive_alan_kullanici_id ? Number(kartela.arsive_alan_kullanici_id) : null,
+    silen_kullanici_id: kartela.silen_kullanici_id ? Number(kartela.silen_kullanici_id) : null
+  }
+  
+  // Renk adı kontrolü
+  if (!cleanedKartela.renk_adi && cleanedKartela.renk_kodu) {
+    const { data: renkData } = await supabase
+      .from('renk_masalari')
+      .select('renk_adi')
+      .eq('renk_kodu', cleanedKartela.renk_kodu)
+      .single()
+    
+    return { ...cleanedKartela, renk_adi: renkData?.renk_adi || cleanedKartela.renk_kodu }
+  }
+  
+  return cleanedKartela
+}))
       
       setKartelalar(enrichedData || [])
     } catch (err) {
