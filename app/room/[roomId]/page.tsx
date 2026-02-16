@@ -139,8 +139,8 @@ export default function RoomPage() {
         return
       }
       
-      const module = await importFunc()
-      const Component = module.default
+      const loadedModule = await importFunc()
+      const Component = loadedModule.default
       
       // Odaya özel component'leri oluştur
       const components: React.ReactNode[] = []

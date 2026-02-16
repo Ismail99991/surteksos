@@ -432,7 +432,7 @@ export default function KartelaOdasiPage() {
                 <button className="p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-left">
                   <QrCode className="h-8 w-8 mb-4" />
                   <h3 className="font-bold text-lg">QR Üret</h3>
-                  <p className="text-sm opacity-90 mt-2">Yeni kartela QR'ı</p>
+                  <p className="text-sm opacity-90 mt-2">{"Yeni kartela QR'ı"}</p>
                 </button>
               </div>
             </div>
