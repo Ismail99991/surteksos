@@ -260,7 +260,7 @@ export default function YoneticiDashboard({ currentUserId }: YoneticiDashboardPr
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-800 font-medium">
-              © 2024 Depo Yönetim Sistemi • 
+              © 2026 Depo Yönetim Sistemi • 
               <span className="mx-2">•</span>
               <span className={`px-2 py-1 rounded-full text-xs ${
                 sistemDurumu.api === 'online' 
