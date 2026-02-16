@@ -420,7 +420,7 @@ export default function OdaComponentModal({
                       <p className="mt-1 text-sm text-red-400">{errors.component_yolu}</p>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                      Component'in import yolu (örn: @/components/...)
+                      {"Component'in import yolu (örn: @/components/...)"}
                     </p>
                   </div>
                 </div>
@@ -545,7 +545,7 @@ export default function OdaComponentModal({
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-gray-300">Component Aktif</div>
-                      <div className="text-sm text-gray-400">Kullanıcılar bu component'i görebilir</div>
+                      <div className="text-sm text-gray-400">{"Kullanıcılar bu component'i görebilir"}</div>
                     </div>
                     <input
                       type="checkbox"

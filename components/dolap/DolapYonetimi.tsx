@@ -509,7 +509,7 @@ export default function DolapYonetimi({ isAdmin = true }: DolapYonetimiProps) {
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
             >
               <QrCode className="h-4 w-4" />
-              Tüm QR'lar
+              {"Tüm QR'lar"}
             </button>
             
             {/* GÖRÜNÜM DEĞİŞTİRME - YENİ */}

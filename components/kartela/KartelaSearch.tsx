@@ -492,20 +492,20 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         {/* Son 4 Hane Arama Bilgilendirme */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800 font-medium">
-            🔍 <strong>Son 4 Hane Arama:</strong> 
+            🔍 <strong>Son 4 Hane Arama:</strong>
             <span className="ml-2 text-blue-600">
-              "23011737.1" kodunu sadece "1737" yazarak arayabilirsiniz
+              {"\"23011737.1\" kodunu sadece \"1737\" yazarak arayabilirsiniz"}
             </span>
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
-              Örnek 1: 1737 → 23011737.1 ve 24011737.2'yi bulur
+              {"Örnek 1: 1737 → 23011737.1 ve 24011737.2'yi bulur"}
             </span>
             <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
-              Örnek 2: 23011737.1 → Tam kod araması
+              {"Örnek 2: 23011737.1 → Tam kod araması"}
             </span>
             <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
-              Örnek 3: KIRMIZI → Renk adı araması
+              {"Örnek 3: KIRMIZI → Renk adı araması"}
             </span>
           </div>
         </div>
@@ -514,7 +514,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-14 w-14 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600 font-medium">Supabase'den kartelalar aranıyor...</p>
+            <p className="mt-4 text-gray-600 font-medium">{"Supabase'den kartelalar aranıyor..."}</p>
             <p className="text-sm text-gray-500 mt-2">
               {currentRoom} • {searchQuery.length === 4 ? `Son 4 hane: ${searchQuery}` : `Tam kod: ${searchQuery}`}
             </p>
@@ -626,10 +626,10 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         {!loading && searchQuery && sonuclar.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             <div className="text-5xl mb-6">🔍</div>
-            <p className="text-xl font-medium">"{searchQuery}" için sonuç bulunamadı</p>
+            <p className="text-xl font-medium">{`"${searchQuery}" için sonuç bulunamadı`}</p>
             <p className="text-gray-600 mt-2">
-              {searchQuery.length === 4 ? 
-                `${searchQuery} son 4 hanesi ile eşleşen kartela bulunamadı` : 
+              {searchQuery.length === 4 ?
+                `${searchQuery} son 4 hanesi ile eşleşen kartela bulunamadı` :
                 'Farklı bir renk kodu, kartela no veya renk adı deneyin'}
             </p>
             <div className="mt-6 text-sm text-green-600">
@@ -646,8 +646,8 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                currentRoom === 'LAB_ODASI' ? '🔬' : '📦'}
             </div>
             <p className="text-xl font-medium">
-              {currentRoom === 'AMIR_ODASI' 
-                ? 'Kartela analizi için arama yapın' 
+              {currentRoom === 'AMIR_ODASI'
+                ? 'Kartela analizi için arama yapın'
                 : currentRoom === 'KARTELA_ODASI'
                 ? 'Son 4 hane (1737) veya tam renk kodu (23011737.1) girin'
                 : currentRoom === 'LAB_ODASI'
@@ -655,7 +655,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                 : 'Kartela aramak için renk kodu veya adı yazın'}
             </p>
             <p className="text-gray-600 mt-2">
-              Örnek: "1737" (son 4 hane), "23011737.1" (tam kod) veya "KIRMIZI"
+              {'Örnek: "1737" (son 4 hane), "23011737.1" (tam kod) veya "KIRMIZI"'}
             </p>
             <button
               onClick={() => {

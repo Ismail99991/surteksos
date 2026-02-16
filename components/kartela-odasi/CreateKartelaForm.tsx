@@ -333,7 +333,7 @@ export default function CreateKartelaForm({ onClose, onSuccess, currentUserId }:
                   <li>• Kartela oluşturulunca <strong>QR kodu otomatik oluşturulacak</strong></li>
                   <li>• QR kodu <strong>indirilebilir ve yazdırılabilir</strong></li>
                   <li>• QR içeriği: Kartela No, Renk Kodu, Durum, Müşteri, Tarih</li>
-                  <li>• Pantone no varsa QR'da gösterilecek</li>
+                  <li>{"• Pantone no varsa QR'da gösterilecek"}</li>
                 </ul>
               </div>
 

@@ -305,7 +305,7 @@ export default function ResetKartelaModal({ onClose, onReset, currentUserId }: R
                   Bu işlem geri alınamaz. 
                   <strong className="block mt-1">
                     • Her durumdaki kartela sıfırlanabilir (sadece DOLU değil)
-                    • Göz sayısı 0'a düşer
+                    • Göz sayısı 0&apos;a düşer
                     • Durum AKTIF olur
                     • Müşteri ataması kalkar
                   </strong>

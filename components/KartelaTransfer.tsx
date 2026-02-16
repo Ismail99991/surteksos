@@ -601,9 +601,9 @@ const handleKartelaScan = async (kartelaKodu: string) => {
               <div>
                 <p className="text-sm text-blue-800 font-medium">Kartela Transfer Kuralları:</p>
                 <ul className="text-xs text-blue-700 mt-1 space-y-1">
-                  <li>• Sadece "AKTIF" veya "DOLU" durumdaki kartelalar transfer edilebilir</li>
-                  <li>• Arşivdeki veya kullanım dışı kartelalar transfer edilemez</li>
-                  <li>• Her kartela QR kodu veya barkodu ile tanımlanmıştır</li>
+                  <li>{'• Sadece "AKTIF" veya "DOLU" durumdaki kartelalar transfer edilebilir'}</li>
+                  <li>{'• Arşivdeki veya kullanım dışı kartelalar transfer edilemez'}</li>
+                  <li>{'• Her kartela QR kodu veya barkodu ile tanımlanmıştır'}</li>
                 </ul>
               </div>
             </div>
@@ -691,7 +691,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
               <div>
                 <p className="text-sm text-green-800 font-medium">Hücre Kontrolleri:</p>
                 <ul className="text-xs text-green-700 mt-1 space-y-1">
-                  <li>• Sadece "AKTIF" hücreler seçilebilir</li>
+                  <li>{'• Sadece "AKTIF" hücreler seçilebilir'}</li>
                   <li>• Dolu hücrelere kartela eklenemez</li>
                   <li>• Kartela zaten aynı hücrede ise transfer yapılamaz</li>
                   <li>• Hücre kapasitesi kontrol edilir</li>

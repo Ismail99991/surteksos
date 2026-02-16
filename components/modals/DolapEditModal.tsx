@@ -361,11 +361,11 @@ export default function DolapEditModal({
             <button
               onClick={handlePrintAllQr}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-              title="Tüm hücrelerin QR kodlarını yazdır"
-            >
-              <QrCode className="h-4 w-4" />
-              <span className="hidden md:inline">Tüm QR'lar</span>
-            </button>
+            title="Tüm hücrelerin QR kodlarını yazdır"
+          >
+            <QrCode className="h-4 w-4" />
+            <span className="hidden md:inline">{"Tüm QR'lar"}</span>
+          </button>
             
             <button
               onClick={loadDetayData}

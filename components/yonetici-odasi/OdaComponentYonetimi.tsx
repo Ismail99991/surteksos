@@ -293,7 +293,7 @@ export default function OdaComponentYonetimi({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Oda Component Yönetimi</h2>
-          <p className="text-gray-400">Odalara gösterilecek component'leri yönetin</p>
+          <p className="text-gray-400">{"Odalara gösterilecek component'leri yönetin"}</p>
         </div>
         
         <div className="flex flex-wrap gap-2">
@@ -402,7 +402,7 @@ export default function OdaComponentYonetimi({
             onClick={handleCreateClick}
             className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
-            İlk Component'i Oluştur
+            {"İlk Component'i Oluştur"}
           </button>
         </div>
       ) : (
