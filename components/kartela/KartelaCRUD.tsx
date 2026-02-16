@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { 
+  import React, { useState, useEffect } from 'react'
+  import { createClient } from '@/lib/supabase/client'
+  import { 
   Package, 
   Plus, 
   Search, 
@@ -277,7 +277,15 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
     }
     
     const { data, error } = await query.order('hucre_kodu')
-    if (!error && data) setHucreler(data)
+    if (!error && data) {
+setHucreler(
+data.map((hucre: any) => ({
+      ...hucre,
+// Normalize null to undefined to satisfy Hucre.aktif?: boolean
+      aktif: hucre.aktif === null ? undefined : hucre.aktif
+    }))
+      )
+    }
   }
 
   // Renkleri çek
@@ -288,14 +296,17 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
       .eq('aktif', true)
       .order('renk_adi')
     
-    if (!error && data) setRenkler(data)
+    if (!error && data) setRenkler(data.map((renk: any) => ({
+  ...renk,
+  aktif: renk.aktif === null ? undefined : renk.aktif
+})))
   }
 
   // Kullanıcıları çek
   const fetchKullanicilar = async () => {
     const { data, error } = await supabase
       .from('kullanicilar')
-      .select('id, ad, soyad, kullanici_adi')
+      .select('id, ad, soyad')
       .eq('aktif', true)
       .order('ad')
     

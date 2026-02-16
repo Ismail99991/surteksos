@@ -157,7 +157,7 @@ export interface Database {
           hucre_id: number | null
           hucre_kodu: string | null
           musteri_adi: string | null
-          musteri_id: string | null
+          musteri_id: number | null
           proje_kodu: string | null
           rpt_calismasi: string | null
           toplam_kullanim_sayisi: number | null
@@ -183,7 +183,7 @@ export interface Database {
           hucre_id?: number | null
           hucre_kodu?: string | null
           musteri_adi?: string | null
-          musteri_id?: string | null
+          musteri_id?: number | null
           proje_kodu?: string | null
           rpt_calismasi?: string | null
           toplam_kullanim_sayisi?: number | null
@@ -209,7 +209,7 @@ export interface Database {
           hucre_id?: number | null
           hucre_kodu?: string | null
           musteri_adi?: string | null
-          musteri_id?: string | null
+          musteri_id?: number | null
           proje_kodu?: string | null
           rpt_calismasi?: string | null
           toplam_kullanim_sayisi?: number | null
