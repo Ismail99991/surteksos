@@ -195,11 +195,8 @@ export default function KullaniciYonetimi({
 
     alert('Kullanıcı silindi!');
     onKullaniciGuncellendi?.();
-
-  } catch (error) {
-    console.error('Kullanıcı silme hatası:', error);
     
-  } catch (err) {
+} catch (err) {
   console.error('Kullanıcı silme hatası:', err);
   
   // HATA MESAJINI GÖSTER
@@ -210,7 +207,6 @@ export default function KullaniciYonetimi({
     alert('Kullanıcı silinemedi: ' + error.message);
   }
 }
-
   // Modal işlemleri
   const handleCreateClick = () => {
     setSelectedKullanici(null);
