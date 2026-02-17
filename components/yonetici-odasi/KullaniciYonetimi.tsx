@@ -156,40 +156,57 @@ export default function KullaniciYonetimi({
   };
 
   // Kullanıcı sil (soft delete)
-  const deleteKullanici = async (kullanici: KullaniciType) => {
-    if (!confirm(`${kullanici.ad} ${kullanici.soyad} kullanıcısını silmek istediğinize emin misiniz?`)) {
-      return;
+ const deleteKullanici = async (kullanici: KullaniciType) => {
+  if (!confirm(`${kullanici.ad} ${kullanici.soyad} kullanıcısını silmek istediğinize emin misiniz?`)) {
+    return;
+  }
+
+  try {
+    // 1. ÖNCE KULLANICIYI PASİF YAP (soft delete)
+    const { error: updateError } = await (supabase as any)
+      .from('kullanicilar')
+      .update({ aktif: false })
+      .eq('id', kullanici.id);
+
+    if (updateError) throw updateError;
+
+    // 2. SONRA YETKİLERİ SİL (foreign key hatasını önlemek için)
+    const { error: yetkiError } = await (supabase as any)
+      .from('kullanici_yetkileri')
+      .delete()
+      .eq('kullanici_id', kullanici.id);
+
+    if (yetkiError) throw yetkiError;
+
+    // 3. LİSTEDEN KALDIR (state güncelleme)
+    setKullanicilar(prev => {
+      const yeniListe = prev.filter(k => k.id !== kullanici.id);
+      console.log('Eski liste:', prev.length, 'Yeni liste:', yeniListe.length);
+      return yeniListe;
+    });
+
+    // 4. SİSTEM LOGU
+    await (supabase as any).from('hareket_loglari').insert([{
+      hareket_tipi: 'KULLANICI_SILINDI',
+      islem_detay: `${kullanici.ad} ${kullanici.soyad} kullanıcısı silindi`,
+      ip_adresi: '127.0.0.1',
+      tarih: new Date().toISOString()
+    }]);
+
+    alert('Kullanıcı silindi!');
+    onKullaniciGuncellendi?.();
+
+  } catch (error) {
+    console.error('Kullanıcı silme hatası:', error);
+    
+    // HATA MESAJINI GÖSTER
+    if (error.message?.includes('foreign key')) {
+      alert('Bu kullanıcı silinemiyor! Önce yetkilerini kaldırın.');
+    } else {
+      alert('Kullanıcı silinemedi: ' + error.message);
     }
-
-    try {
-      const { error } = await (supabase as any)
-        .from('kullanicilar')
-        .update({ 
-          aktif: false
-        })
-        .eq('id', kullanici.id);
-
-      if (error) throw error;
-
-      // Listeden kaldır
-      setKullanicilar(prev => prev.filter(k => k.id !== kullanici.id));
-
-      // Sistem logu ekle
-      await (supabase as any).from('hareket_loglari').insert([{
-        hareket_tipi: 'KULLANICI_SILINDI',
-        islem_detay: `${kullanici.ad} ${kullanici.soyad} kullanıcısı silindi`,
-        ip_adresi: '127.0.0.1',
-        tarih: new Date().toISOString()
-      }]);
-
-      alert('Kullanıcı silindi!');
-      onKullaniciGuncellendi?.();
-
-    } catch (error) {
-      console.error('Kullanıcı silme hatası:', error);
-      alert('Kullanıcı silinemedi!');
-    }
-  };
+  }
+};
 
   // Modal işlemleri
   const handleCreateClick = () => {
