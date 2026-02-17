@@ -398,18 +398,17 @@ export default function AmirOdasiPage() {
         )}
 
         {activeTab === 'transfer' && (
-          <div className="bg-white rounded-xl shadow">
-            <div className="p-6">
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                  <ArrowRightLeft className="h-6 w-6 text-purple-600" />
-                  Kartela Transfer Sistemi
-                </h2>
-                <p className="text-gray-600 mt-2">
-                  Kartelaları transfer edin - İşlemler <span className="font-bold text-purple-600">{roomData.oda_kodu}</span> odasına loglanacak
-                </p>
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            {/* Breadcrumbs */}
+            <div className="px-6 py-4 border-b bg-gray-50">
+              <div className="flex items-center text-sm text-gray-600">
+                <span className="text-purple-600 font-medium">Amir Odası</span>
+                <ArrowRightLeft className="h-4 w-4 mx-2 text-gray-400" />
+                <span className="text-gray-900 font-medium">Kartela Transfer</span>
               </div>
-              
+            </div>
+            
+            <div className="p-0">
               <KartelaTransfer 
                 currentOdaId={roomData.id}
                 currentUserId={userData.id}
