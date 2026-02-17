@@ -401,6 +401,27 @@ data.map((hucre: any) => ({
     
     try {
       setLoading(true)
+
+       const updateData = {
+      kartela_no: String(formData.kartela_no || ''),
+      renk_kodu: String(formData.renk_kodu || ''),
+      renk_adi: String(formData.renk_adi || ''),
+      goz_sayisi: formData.goz_sayisi ? Number(formData.goz_sayisi) : null,
+      maksimum_goz: formData.maksimum_goz ? Number(formData.maksimum_goz) : null,
+      goz_dolum_orani: formData.goz_dolum_orani ? Number(formData.goz_dolum_orani) : null,
+      durum: String(formData.durum || 'Aktif'),
+      hucre_id: formData.hucre_id ? Number(formData.hucre_id) : null,
+      hucre_kodu: String(formData.hucre_kodu || ''),
+      musteri_adi: String(formData.musteri_adi || ''),
+      proje_kodu: String(formData.proje_kodu || ''),
+      rpt_calismasi: String(formData.rpt_calismasi || ''),
+      musteri_id: formData.musteri_id ? Number(formData.musteri_id) : null,
+      son_kullanim_tarihi: new Date().toISOString()
+    }
+
+    // Konsolda gönderilecek veriyi kontrol et
+    console.log('Gönderilecek veri:', updateData)
+    console.log('renk_adi değeri:', updateData.renk_adi, 'tipi:', typeof updateData.renk_adi)
       
       const { error } = await supabase
         .from('kartelalar')
