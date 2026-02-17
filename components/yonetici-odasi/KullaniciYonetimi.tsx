@@ -199,14 +199,17 @@ export default function KullaniciYonetimi({
   } catch (error) {
     console.error('Kullanıcı silme hatası:', error);
     
-    // HATA MESAJINI GÖSTER
-    if (error.message?.includes('foreign key')) {
-      alert('Bu kullanıcı silinemiyor! Önce yetkilerini kaldırın.');
-    } else {
-      alert('Kullanıcı silinemedi: ' + error.message);
-    }
+  } catch (err) {
+  console.error('Kullanıcı silme hatası:', err);
+  
+  // HATA MESAJINI GÖSTER
+  const error = err as Error;  // <-- tip dönüşümü
+  if (error.message?.includes('foreign key')) {
+    alert('Bu kullanıcı silinemiyor! Önce yetkilerini kaldırın.');
+  } else {
+    alert('Kullanıcı silinemedi: ' + error.message);
   }
-};
+}
 
   // Modal işlemleri
   const handleCreateClick = () => {
