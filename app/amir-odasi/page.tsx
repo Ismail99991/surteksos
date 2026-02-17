@@ -21,7 +21,7 @@ import {
   Settings
 } from 'lucide-react'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
-import AmirTransfer from '@/components/amir-odasi/AmirTransfer'
+import KartelaTransfer from '@/components/kartela/KartelaTransfer'
 
 const supabase = createClient()
 
@@ -148,6 +148,11 @@ export default function AmirOdasiPage() {
     router.push('/access')
   }
 
+  const handleTransferSuccess = () => {
+    // Transfer başarılı olduğunda raf listesini güncelle
+    loadAmirRaflari()
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-purple-50">
@@ -235,7 +240,7 @@ export default function AmirOdasiPage() {
               className={`flex items-center gap-3 px-6 py-4 font-medium whitespace-nowrap ${activeTab === 'transfer' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <ArrowRightLeft className="h-5 w-5" />
-              Amir Transfer
+              Kartela Transfer
             </button>
             <button
               onClick={() => setActiveTab('raflar')}
@@ -385,7 +390,7 @@ export default function AmirOdasiPage() {
                 </p>
               </div>
               <KartelaSearch 
-                currentRoom="AMIR_ODASI"
+                currentRoom={roomData.oda_kodu}
                 currentUserId={userData.id}
               />
             </div>
@@ -398,17 +403,17 @@ export default function AmirOdasiPage() {
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                   <ArrowRightLeft className="h-6 w-6 text-purple-600" />
-                  Amir Transfer Sistemi
+                  Kartela Transfer Sistemi
                 </h2>
                 <p className="text-gray-600 mt-2">
-                  Kartelaları sadece <span className="font-bold text-purple-600">Amir Odası rafları</span> arasında transfer edebilirsiniz
+                  Kartelaları transfer edin - İşlemler <span className="font-bold text-purple-600">{roomData.oda_kodu}</span> odasına loglanacak
                 </p>
               </div>
               
-              <AmirTransfer 
+              <KartelaTransfer 
                 currentOdaId={roomData.id}
                 currentUserId={userData.id}
-                amirRaflari={amirRaflari}
+                onSuccess={handleTransferSuccess}
               />
             </div>
           </div>
