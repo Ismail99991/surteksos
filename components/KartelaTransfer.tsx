@@ -63,7 +63,7 @@ interface KartelaTransferProps {
   onSuccess?: () => void;
 }
 
-type TransferStep = 'kartela' | 'hucre' | 'confirm' | 'success' | 'error';
+type TransferStep = 'kartela' | 'hucre' | 'success' | 'error';
 
 export default function KartelaTransfer({ 
   currentOdaId, 
@@ -81,7 +81,6 @@ export default function KartelaTransfer({
   
   const kartelaInputRef = useRef<HTMLInputElement>(null);
   const hucreInputRef = useRef<HTMLInputElement>(null);
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   // Auto-reset timer'ı temizle
   useEffect(() => {
@@ -93,59 +92,15 @@ export default function KartelaTransfer({
   }, [autoResetTimeout]);
 
   // STEP 1: Kartela QR Okuma
-// STEP 1: Kartela QR Okuma
-const handleKartelaScan = async (kartelaKodu: string) => {
-  setLoading(true);
-  setError(null);
-  
-  try {
-    const temizKod = kartelaKodu.trim();
+  const handleKartelaScan = async (kartelaKodu: string) => {
+    setLoading(true);
+    setError(null);
     
-    // 1. KARTELA_NO ile tam eşleşme ara
-    let { data, error } = await supabase
-      .from('kartelalar')
-      .select(`
-        *,
-        renk_masalari!left (
-          pantone_kodu,
-          hex_kodu,
-          renk_adi
-        ),
-        hucreler!left (
-          id,
-          hucre_kodu,
-          hucre_adi,
-          kapasite,
-          mevcut_kartela_sayisi,
-          raf_id,
-          aktif,
-          raflar!left (
-            raf_kodu,
-            raf_adi,
-            dolap_id,
-            dolaplar!left (
-              dolap_kodu,
-              dolap_adi,
-              oda_id,
-              odalar!left (
-                oda_kodu,
-                oda_adi,
-                kat,
-                bina
-              )
-            )
-          )
-        )
-      `)
-      .eq('silindi', false)
-      .eq('kartela_no', temizKod)
-      .maybeSingle();
-
-    if (error) throw error;
-    
-    // 2. Kartela_no ile bulamazsa RENK_KODU ile ara (içinde geçen)
-    if (!data) {
-      const { data: renkData, error: renkError } = await supabase
+    try {
+      const temizKod = kartelaKodu.trim();
+      
+      // 1. KARTELA_NO ile tam eşleşme ara
+      let { data, error } = await supabase
         .from('kartelalar')
         .select(`
           *,
@@ -181,46 +136,90 @@ const handleKartelaScan = async (kartelaKodu: string) => {
           )
         `)
         .eq('silindi', false)
-        .ilike('renk_kodu', `%${temizKod}%`)  // İçinde geçenleri ara
-        .limit(1)
+        .eq('kartela_no', temizKod)
         .maybeSingle();
-        
-      if (renkError) throw renkError;
-      data = renkData;
-    }
-    
-    // 3. Hala bulamadıysa hata ver
-    if (!data) {
-      throw new Error('Kartela bulunamadı!');
-    }
 
-    const kartelaData = data;
+      if (error) throw error;
+      
+      // 2. Kartela_no ile bulamazsa RENK_KODU ile ara (içinde geçen)
+      if (!data) {
+        const { data: renkData, error: renkError } = await supabase
+          .from('kartelalar')
+          .select(`
+            *,
+            renk_masalari!left (
+              pantone_kodu,
+              hex_kodu,
+              renk_adi
+            ),
+            hucreler!left (
+              id,
+              hucre_kodu,
+              hucre_adi,
+              kapasite,
+              mevcut_kartela_sayisi,
+              raf_id,
+              aktif,
+              raflar!left (
+                raf_kodu,
+                raf_adi,
+                dolap_id,
+                dolaplar!left (
+                  dolap_kodu,
+                  dolap_adi,
+                  oda_id,
+                  odalar!left (
+                    oda_kodu,
+                    oda_adi,
+                    kat,
+                    bina
+                  )
+                )
+              )
+            )
+          `)
+          .eq('silindi', false)
+          .ilike('renk_kodu', `%${temizKod}%`)
+          .limit(1)
+          .maybeSingle();
+          
+        if (renkError) throw renkError;
+        data = renkData;
+      }
+      
+      // 3. Hala bulamadıysa hata ver
+      if (!data) {
+        throw new Error('Kartela bulunamadı!');
+      }
 
-    // Kartela kontrolü
-    if (kartelaData.durum === 'KULLANIM_DISI') {
-      throw new Error('Bu kartela kullanım dışı!');
+      const kartelaData = data;
+
+      // Kartela kontrolü
+      if (kartelaData.durum === 'KULLANIM_DISI') {
+        throw new Error('Bu kartela kullanım dışı!');
+      }
+
+      if (kartelaData.durum === 'KARTELA_ARSIV') {
+        throw new Error('Bu kartela arşivde!');
+      }
+
+      setKartela(kartelaData as any);
+      setCurrentStep('hucre');
+      
+      // Hücre input'una otomatik odaklan
+      setTimeout(() => {
+        hucreInputRef.current?.focus();
+      }, 100);
+      
+    } catch (error: any) {
+      setError(error.message || 'Kartela okunurken hata oluştu');
+      setCurrentStep('error');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (kartelaData.durum === 'KARTELA_ARSIV') {
-      throw new Error('Bu kartela arşivde!');
-    }
-
-    setKartela(kartelaData as any);
-    setCurrentStep('hucre');
-    
-    // Hücre input'una otomatik odaklan
-    setTimeout(() => {
-      hucreInputRef.current?.focus();
-    }, 100);
-    
-  } catch (error: any) {
-    setError(error.message || 'Kartela okunurken hata oluştu');
-    setCurrentStep('error');
-  } finally {
-    setLoading(false);
-  }
-};
-  // STEP 2: Hücre QR Okuma
+  // STEP 2: Hücre QR Okuma ve Transfer
   const handleHucreScan = async (hucreKodu: string) => {
     setLoading(true);
     setError(null);
@@ -274,12 +273,9 @@ const handleKartelaScan = async (kartelaKodu: string) => {
       }
 
       setHucre(hucreData as any);
-      setCurrentStep('confirm');
       
-      // Onay butonuna otomatik odaklan
-      setTimeout(() => {
-        confirmButtonRef.current?.focus();
-      }, 100);
+      // Hücre bulundu, hemen transferi gerçekleştir
+      await performTransfer(hucreData);
       
     } catch (error: any) {
       setError(error.message || 'Hücre okunurken hata oluştu');
@@ -289,9 +285,9 @@ const handleKartelaScan = async (kartelaKodu: string) => {
     }
   };
 
-  // STEP 3: Transferi Onayla ve Yap
-  const confirmTransfer = async () => {
-    if (!kartela || !hucre) return;
+  // Transfer işlemini gerçekleştir
+  const performTransfer = async (hedefHucre: any) => {
+    if (!kartela) return;
     
     setLoading(true);
     
@@ -301,7 +297,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
         const { error: eskiHucreError } = await supabase
           .from('hucreler')
           .update({ 
-            mevcut_kartela_sayisi: (hucre.mevcut_kartela_sayisi || 1) - 1 
+            mevcut_kartela_sayisi: (hedefHucre.mevcut_kartela_sayisi || 1) - 1 
           })
           .eq('id', kartela.hucre_id);
 
@@ -312,9 +308,9 @@ const handleKartelaScan = async (kartelaKodu: string) => {
       const { error: yeniHucreError } = await supabase
         .from('hucreler')
         .update({ 
-          mevcut_kartela_sayisi: (hucre.mevcut_kartela_sayisi || 0) + 1 
+          mevcut_kartela_sayisi: (hedefHucre.mevcut_kartela_sayisi || 0) + 1 
         })
-        .eq('id', hucre.id);
+        .eq('id', hedefHucre.id);
 
       if (yeniHucreError) throw yeniHucreError;
 
@@ -322,8 +318,8 @@ const handleKartelaScan = async (kartelaKodu: string) => {
       const { error: kartelaError } = await supabase
         .from('kartelalar')
         .update({ 
-          hucre_id: hucre.id,
-          hucre_kodu: hucre.hucre_kodu,
+          hucre_id: hedefHucre.id,
+          hucre_kodu: hedefHucre.hucre_kodu,
           son_kullanim_tarihi: new Date().toISOString(),
           son_kullanan_kullanici_id: currentUserId,
           toplam_kullanim_sayisi: (kartela.toplam_kullanim_sayisi || 0) + 1
@@ -340,7 +336,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
           kartela_no: kartela.kartela_no || `KRT-${kartela.id}`,
           hareket_tipi: 'HUCRE_YERLESTIRME',
           eski_hucre_kodu: kartela.hucre_kodu,
-          yeni_hucre_kodu: hucre.hucre_kodu,
+          yeni_hucre_kodu: hedefHucre.hucre_kodu,
           kullanici_id: currentUserId,
           aciklama: `Kartela ${kartela.renk_kodu} transfer edildi`,
           ip_adresi: null,
@@ -392,10 +388,11 @@ const handleKartelaScan = async (kartelaKodu: string) => {
   // Klavye olaylarını dinle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Sadece confirm adımında ve loading değilken Enter tuşuna basıldığında
-      if (currentStep === 'confirm' && !loading && e.key === 'Enter') {
-        e.preventDefault(); // Form submit'i engelle
-        confirmTransfer();
+      // Sadece hucre adımında ve loading değilken Enter tuşuna basıldığında
+      if (currentStep === 'hucre' && !loading && e.key === 'Enter') {
+        e.preventDefault();
+        const value = hucreInputRef.current?.value;
+        if (value) handleHucreScan(value);
       }
       
       // Success adımında Enter'a basıldığında başa dön
@@ -411,7 +408,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
       }
       
       // ESCAPE TUŞU İLE TÜM ADIMLARDA BAŞA DÖN
-      if ((currentStep === 'kartela' || currentStep === 'hucre' || currentStep === 'confirm') && e.key === 'Escape') {
+      if ((currentStep === 'kartela' || currentStep === 'hucre') && e.key === 'Escape') {
         e.preventDefault();
         resetTransfer();
       }
@@ -422,7 +419,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentStep, loading, confirmTransfer]);
+  }, [currentStep, loading]);
 
   // QR Scanner simülasyonu (gerçek kamera API'si eklenebilir)
   const simulateQRScan = (type: 'kartela' | 'hucre') => {
@@ -480,14 +477,14 @@ const handleKartelaScan = async (kartelaKodu: string) => {
   };
 
   // Hücre konum bilgisi
-  const renderHucreKonum = () => {
-    if (!hucre) return null;
+  const renderHucreKonum = (hucreData: any) => {
+    if (!hucreData) return null;
     
     return (
       <div className="text-sm">
-        <div><MapPin className="inline w-3 h-3 mr-1" /> {hucre.hucre_kodu} • {hucre.hucre_adi}</div>
+        <div><MapPin className="inline w-3 h-3 mr-1" /> {hucreData.hucre_kodu} • {hucreData.hucre_adi}</div>
         <div className="text-xs text-gray-500 mt-1">
-          Kapasite: {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 0}
+          Kapasite: {hucreData.mevcut_kartela_sayisi || 0}/{hucreData.kapasite || 0}
         </div>
       </div>
     );
@@ -500,9 +497,9 @@ const handleKartelaScan = async (kartelaKodu: string) => {
           <ArrowRightLeft className="h-8 w-8 text-blue-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Kartela Transfer Sistemi</h2>
-        <p className="text-gray-600 mt-2">QR kodları ile kartela al/ver işlemi yapın</p>
+        <p className="text-gray-600 mt-2">QR kodları ile kartela transfer işlemi yapın</p>
         
-        {/* KLAVYE KISAYOLLARI GÖSTERGESİ - ESC EKLENDİ */}
+        {/* KLAVYE KISAYOLLARI GÖSTERGESİ */}
         <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
           <span className="flex items-center gap-1">
             <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd>
@@ -526,20 +523,11 @@ const handleKartelaScan = async (kartelaKodu: string) => {
             
             <div className={`w-16 h-1 mx-2 ${currentStep !== 'kartela' ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
             
-            <div className={`flex flex-col items-center ${currentStep === 'hucre' || currentStep === 'confirm' || currentStep === 'success' ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div className={`flex flex-col items-center ${currentStep === 'hucre' || currentStep === 'success' ? 'text-blue-600' : 'text-gray-400'}`}>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${currentStep !== 'kartela' ? 'bg-blue-100' : 'bg-gray-100'}`}>
                 <span className="font-bold">2</span>
               </div>
-              <span className="text-xs mt-2">Hücre</span>
-            </div>
-            
-            <div className={`w-16 h-1 mx-2 ${currentStep === 'confirm' || currentStep === 'success' ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-            
-            <div className={`flex flex-col items-center ${currentStep === 'confirm' || currentStep === 'success' ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${currentStep === 'confirm' || currentStep === 'success' ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                <span className="font-bold">3</span>
-              </div>
-              <span className="text-xs mt-2">Onay</span>
+              <span className="text-xs mt-2">Hücre & Transfer</span>
             </div>
           </div>
         </div>
@@ -552,7 +540,6 @@ const handleKartelaScan = async (kartelaKodu: string) => {
             <Package className="h-16 w-16 text-blue-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">1. Kartela QR Kodunu Okutun</h3>
             <p className="text-gray-600">Kartela barkodunu taratın veya kartela numarasını girin</p>
-            {/* ESC BİLGİSİ EKLENDİ */}
             <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
               <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd>
               <X className="h-3 w-3" />
@@ -611,14 +598,13 @@ const handleKartelaScan = async (kartelaKodu: string) => {
         </div>
       )}
 
-      {/* STEP 2: Hücre QR Okuma */}
+      {/* STEP 2: Hücre QR Okuma ve Transfer */}
       {currentStep === 'hucre' && kartela && (
         <div className="text-center py-8">
           <div className="mb-6">
             <MapPin className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">2. Hedef Hücre QR Kodunu Okutun</h3>
-            <p className="text-gray-600">Kartelayı yerleştireceğiniz hücrenin QR kodunu taratın</p>
-            {/* ESC BİLGİSİ EKLENDİ */}
+            <p className="text-gray-600">Kartelayı yerleştireceğiniz hücrenin QR kodunu taratın - transfer otomatik gerçekleşecek</p>
             <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
               <kbd className="px-2 py-1 bg-gray-100 rounded border">Esc</kbd>
               <X className="h-3 w-3" />
@@ -658,7 +644,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
               className="w-full py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-3"
             >
               <Scan className="h-5 w-5" />
-              Hücre QR Kodunu Tara
+              Hücre QR Kodunu Tara ve Transfer Et
             </button>
             
             <div className="flex items-center justify-center gap-2 text-gray-500">
@@ -678,9 +664,15 @@ const handleKartelaScan = async (kartelaKodu: string) => {
               />
               <button
                 onClick={handleHucreManual}
-                className="w-full mt-2 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                className="w-full mt-2 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                disabled={loading}
               >
-                Hücre Ara
+                {loading ? 'Transfer Ediliyor...' : (
+                  <>
+                    <ArrowRight className="h-4 w-4" />
+                    Hücreyi Bul ve Transfer Et
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -689,7 +681,7 @@ const handleKartelaScan = async (kartelaKodu: string) => {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-green-500 mt-0.5" />
               <div>
-                <p className="text-sm text-green-800 font-medium">Hücre Kontrolleri:</p>
+                <p className="text-sm text-green-800 font-medium">Hüre Kontrolleri:</p>
                 <ul className="text-xs text-green-700 mt-1 space-y-1">
                   <li>{'• Sadece "AKTIF" hücreler seçilebilir'}</li>
                   <li>• Dolu hücrelere kartela eklenemez</li>
@@ -697,90 +689,6 @@ const handleKartelaScan = async (kartelaKodu: string) => {
                   <li>• Hücre kapasitesi kontrol edilir</li>
                 </ul>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3: Onay */}
-      {currentStep === 'confirm' && kartela && hucre && (
-        <div className="text-center py-8">
-          <div className="mb-6">
-            <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">3. Transferi Onaylayın</h3>
-            <p className="text-gray-600">Aşağıdaki bilgileri kontrol edip transferi onaylayın</p>
-            <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
-              <kbd className="px-2 py-1 bg-gray-100 rounded border">Enter</kbd>
-              <ArrowRight className="h-3 w-3" />
-              tuşuna basarak onaylayabilirsiniz
-            </p>
-          </div>
-          
-          <div className="max-w-md mx-auto space-y-6">
-            {/* Kartela Bilgisi */}
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="text-left">
-                <div className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  TAŞINACAK KARTELA
-                </div>
-                <div className="font-mono font-bold text-blue-700">{kartela.kartela_no || `KRT-${kartela.id}`}</div>
-                <div className="text-sm text-gray-700">
-                  <span className="font-mono">{kartela.renk_kodu}</span>
-                  {kartela.renk_masalari?.renk_adi ? (
-                    <span className="ml-2">• {kartela.renk_masalari.renk_adi}</span>
-                  ) : (
-                    <span className="ml-2 text-amber-600 text-xs">(Renk adı girilmemiş)</span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  {renderKartelaKonum()}
-                </div>
-              </div>
-            </div>
-            
-            {/* Ok İkonu */}
-            <div className="flex justify-center">
-              <ArrowRightLeft className="h-8 w-8 text-gray-400" />
-            </div>
-            
-            {/* Hücre Bilgisi */}
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-left">
-                <div className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  HEDEF HÜCRE
-                </div>
-                {renderHucreKonum()}
-                <div className="text-xs text-gray-500 mt-2">
-                  Kapasite Durumu: {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 0}
-                </div>
-              </div>
-            </div>
-            
-            {/* Onay Butonları */}
-            <div className="flex gap-4 pt-4">
-              <button
-                onClick={resetTransfer}
-                className="flex-1 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2"
-                disabled={loading}
-              >
-                <X className="h-4 w-4" />
-                İptal (Esc)
-              </button>
-              <button
-                ref={confirmButtonRef}
-                onClick={confirmTransfer}
-                disabled={loading}
-                className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 focus:ring-4 focus:ring-green-300 outline-none flex items-center justify-center gap-2"
-              >
-                {loading ? 'İşleniyor...' : (
-                  <>
-                    Transferi Onayla
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
