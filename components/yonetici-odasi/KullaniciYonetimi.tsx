@@ -155,37 +155,26 @@ export default function KullaniciYonetimi({
     }
   };
 
-  // Kullanıcı sil (soft delete)
- const deleteKullanici = async (kullanici: KullaniciType) => {
+// Kullanıcı sil (soft delete)
+const deleteKullanici = async (kullanici: KullaniciType) => {
   if (!confirm(`${kullanici.ad} ${kullanici.soyad} kullanıcısını silmek istediğinize emin misiniz?`)) {
     return;
   }
 
   try {
-    // 1. ÖNCE KULLANICIYI PASİF YAP (soft delete)
-    const { error: updateError } = await (supabase as any)
+    const { error } = await (supabase as any)
       .from('kullanicilar')
-      .update({ aktif: false })
+      .update({ 
+        aktif: false
+      })
       .eq('id', kullanici.id);
 
-    if (updateError) throw updateError;
+    if (error) throw error;
 
-    // 2. SONRA YETKİLERİ SİL (foreign key hatasını önlemek için)
-    const { error: yetkiError } = await (supabase as any)
-      .from('kullanici_yetkileri')
-      .delete()
-      .eq('kullanici_id', kullanici.id);
+    // Listeden kaldır
+    setKullanicilar(prev => prev.filter(k => k.id !== kullanici.id));
 
-    if (yetkiError) throw yetkiError;
-
-    // 3. LİSTEDEN KALDIR (state güncelleme)
-    setKullanicilar(prev => {
-      const yeniListe = prev.filter(k => k.id !== kullanici.id);
-      console.log('Eski liste:', prev.length, 'Yeni liste:', yeniListe.length);
-      return yeniListe;
-    });
-
-    // 4. SİSTEM LOGU
+    // Sistem logu ekle
     await (supabase as any).from('hareket_loglari').insert([{
       hareket_tipi: 'KULLANICI_SILINDI',
       islem_detay: `${kullanici.ad} ${kullanici.soyad} kullanıcısı silindi`,
@@ -195,18 +184,12 @@ export default function KullaniciYonetimi({
 
     alert('Kullanıcı silindi!');
     onKullaniciGuncellendi?.();
-    
-} catch (err) {
-  console.error('Kullanıcı silme hatası:', err);
-  
-  // HATA MESAJINI GÖSTER
-  const error = err as Error;  // <-- tip dönüşümü
-  if (error.message?.includes('foreign key')) {
-    alert('Bu kullanıcı silinemiyor! Önce yetkilerini kaldırın.');
-  } else {
-    alert('Kullanıcı silinemedi: ' + error.message);
+
+  } catch (err) {
+    console.error('Kullanıcı silme hatası:', err);
+    alert('Kullanıcı silinemedi!');
   }
-}
+};
   // Modal işlemleri
   const handleCreateClick = () => {
     setSelectedKullanici(null);
