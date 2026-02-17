@@ -21,7 +21,7 @@ import {
   Settings
 } from 'lucide-react'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
-import KartelaTransfer from '@/components/kartela/KartelaTransfer'
+import KartelaTransfer from '@/components/KartelaTransfer'
 
 const supabase = createClient()
 
