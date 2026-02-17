@@ -44,41 +44,41 @@ export default function KullaniciYonetimi({
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
 
-  // Kullanıcıları yükle
-  useEffect(() => {
-    loadKullanicilar();
-  }, [refreshTrigger]);
+ // Kullanıcıları yükle
+useEffect(() => {
+  loadKullanicilar();
+}, [refreshTrigger, aktifFiltre]); // <-- aktifFiltre eklendi!
 
-  const loadKullanicilar = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+const loadKullanicilar = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      let query = supabase
-        .from('kullanicilar')
-        .select('*')
-        .order('olusturulma_tarihi', { ascending: false });
+    let query = supabase
+      .from('kullanicilar')
+      .select('*')
+      .order('olusturulma_tarihi', { ascending: false });
 
-      // Aktif filtre uygula
-      if (aktifFiltre === 'active') {
-        query = query.eq('aktif', true);
-      } else if (aktifFiltre === 'inactive') {
-        query = query.eq('aktif', false);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setKullanicilar(data || []);
-
-    } catch (error) {
-      console.error('Kullanıcı yükleme hatası:', error);
-      setError('Kullanıcılar yüklenemedi');
-    } finally {
-      setLoading(false);
+    // Aktif filtre uygula - DÜZELTİLDİ!
+    if (aktifFiltre === 'active') {
+      query = query.eq('aktif', true);      // Sadece aktifler
+    } else if (aktifFiltre === 'inactive') {
+      query = query.eq('aktif', false);     // Sadece pasifler (DÜZELTİLDİ!)
     }
-  };
+    // 'all' seçiliyse hiç filtre uygulama, hepsi gelsin
 
+    const { data, error } = await query;
+
+    if (error) throw error;
+    setKullanicilar(data || []);
+
+  } catch (error) {
+    console.error('Kullanıcı yükleme hatası:', error);
+    setError('Kullanıcılar yüklenemedi');
+  } finally {
+    setLoading(false);
+  }
+};
   // Filtrelenmiş kullanıcılar
   const filteredKullanicilar = kullanicilar.filter(kullanici => {
     const searchLower = searchQuery.toLowerCase();
