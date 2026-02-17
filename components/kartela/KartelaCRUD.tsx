@@ -531,7 +531,7 @@ data.map((hucre: any) => ({
     setFormData({
       kartela_no: kartela.kartela_no,
       renk_kodu: kartela.renk_kodu,
-      renk_adi: kartela.renk_adi || '',
+      renk_adi: kartela.renk_adi?.toString() || '',
       goz_sayisi: kartela.goz_sayisi,
       maksimum_goz: kartela.maksimum_goz,
       goz_dolum_orani: kartela.goz_dolum_orani,
@@ -1038,7 +1038,7 @@ data.map((hucre: any) => ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Renk Adı</label>
                   <input
                     type="text"
-                    value={formData.renk_adi}
+                    value={formData.renk_adi?.toString() || ''}
                     onChange={(e) => setFormData({ ...formData, renk_adi: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
                     placeholder="Renk adı"
