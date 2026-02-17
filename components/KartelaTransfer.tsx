@@ -5,7 +5,10 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   QrCode, 
   Package, 
+  CheckCircle, 
+  XCircle, 
   RefreshCw,
+  MapPin,
   Home,
   Layers,
   ArrowRightLeft,
@@ -16,8 +19,6 @@ import {
   ArrowRight,
   X
 } from 'lucide-react';
-import { MapPinIcon, CheckCircleIcon, CircleStackIcon } from '@heroicons/react/24/solid';
-import { CalendarIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 
@@ -344,7 +345,7 @@ export default function KartelaTransfer({
 
       if (logError) throw logError;
 
-      setSuccessMessage('✓ Kartela başarıyla transfer edildi!');
+      setSuccessMessage('✅ Kartela başarıyla transfer edildi!');
       setCurrentStep('success');
       
       if (onSuccess) onSuccess();
@@ -458,12 +459,7 @@ export default function KartelaTransfer({
 
   // Kartela konum bilgisi
   const renderKartelaKonum = () => {
-    if (!kartela?.hucreler) return (
-      <span className="flex items-center gap-1 text-gray-500">
-        <MapPinIcon className="w-4 h-4 text-fuchsia-400" />
-        Hücreye yerleştirilmemiş
-      </span>
-    );
+    if (!kartela?.hucreler) return '📍 Hücreye yerleştirilmemiş';
     
     const h = kartela.hucreler;
     const raf = kartela.hucre_raflar;
@@ -475,10 +471,7 @@ export default function KartelaTransfer({
         {oda && <div><Home className="inline w-3 h-3 mr-1" /> {oda.oda_kodu} • {oda.oda_adi}</div>}
         {dolap && <div><Package className="inline w-3 h-3 mr-1" /> {dolap.dolap_kodu} • {dolap.dolap_adi}</div>}
         {raf && <div><Layers className="inline w-3 h-3 mr-1" /> {raf.raf_kodu} • {raf.raf_adi}</div>}
-        <div className="flex items-center gap-1">
-          <MapPinIcon className="w-4 h-4 text-cyan-400" />
-          {h.hucre_kodu} • {h.hucre_adi}
-        </div>
+        <div><MapPin className="inline w-3 h-3 mr-1" /> {h.hucre_kodu} • {h.hucre_adi}</div>
       </div>
     );
   };
@@ -489,10 +482,7 @@ export default function KartelaTransfer({
     
     return (
       <div className="text-sm">
-        <div className="flex items-center gap-1">
-          <MapPinIcon className="w-5 h-5 text-lime-400" />
-          {hucreData.hucre_kodu} • {hucreData.hucre_adi}
-        </div>
+        <div><MapPin className="inline w-3 h-3 mr-1" /> {hucreData.hucre_kodu} • {hucreData.hucre_adi}</div>
         <div className="text-xs text-gray-500 mt-1">
           Kapasite: {hucreData.mevcut_kartela_sayisi || 0}/{hucreData.kapasite || 0}
         </div>
@@ -612,7 +602,7 @@ export default function KartelaTransfer({
       {currentStep === 'hucre' && kartela && (
         <div className="text-center py-8">
           <div className="mb-6">
-            <MapPinIcon className="w-16 h-16 text-lime-400 mx-auto mb-4" />
+            <MapPin className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">2. Hedef Hücre QR Kodunu Okutun</h3>
             <p className="text-gray-600">Kartelayı yerleştireceğiniz hücrenin QR kodunu taratın - transfer otomatik gerçekleşecek</p>
             <p className="text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
@@ -642,15 +632,8 @@ export default function KartelaTransfer({
                   {renderKartelaKonum()}
                 </div>
               </div>
-              <div className={`px-3 py-1 rounded-full text-xs flex items-center gap-1 ${
-                kartela.durum === 'AKTIF' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-              }`}>
-                {kartela.durum === 'AKTIF' ? (
-                  <CheckCircleIcon className="w-4 h-4 text-green-400" />
-                ) : (
-                  <CircleStackIcon className="w-4 h-4 text-blue-400" />
-                )}
-                {kartela.durum === 'AKTIF' ? 'Aktif' : 'Dolu'}
+              <div className={`px-3 py-1 rounded-full text-xs ${kartela.durum === 'AKTIF' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                {kartela.durum === 'AKTIF' ? '✅ Aktif' : '🔵 Dolu'}
               </div>
             </div>
           </div>
@@ -698,7 +681,7 @@ export default function KartelaTransfer({
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-green-500 mt-0.5" />
               <div>
-                <p className="text-sm text-green-800 font-medium">Hücre Kontrolleri:</p>
+                <p className="text-sm text-green-800 font-medium">Hüre Kontrolleri:</p>
                 <ul className="text-xs text-green-700 mt-1 space-y-1">
                   <li>{'• Sadece "AKTIF" hücreler seçilebilir'}</li>
                   <li>• Dolu hücrelere kartela eklenemez</li>
@@ -714,7 +697,7 @@ export default function KartelaTransfer({
       {/* SUCCESS */}
       {currentStep === 'success' && (
         <div className="text-center py-12">
-          <CheckCircleIcon className="w-24 h-24 text-green-400 mx-auto mb-4" />
+          <CheckCircle className="h-24 w-24 text-green-500 mx-auto mb-4" />
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Transfer Başarılı!</h3>
           <p className="text-gray-600 mb-6">{successMessage}</p>
           <p className="text-xs text-gray-500 mb-4 flex items-center justify-center gap-1">
@@ -727,7 +710,7 @@ export default function KartelaTransfer({
             <div className="max-w-md mx-auto p-4 bg-green-50 rounded-lg border border-green-200 mb-6">
               <div className="text-left">
                 <div className="font-bold text-green-800 mb-2 flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                  <CheckCircle className="h-4 w-4" />
                   Transfer Özeti:
                 </div>
                 <div className="text-sm">
@@ -739,12 +722,11 @@ export default function KartelaTransfer({
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <MapPinIcon className="w-5 h-5 text-lime-400" />
+                    <MapPin className="h-4 w-4 text-gray-500" />
                     <span className="font-medium">Yeni Hücre:</span> {hucre.hucre_kodu}
                   </div>
-                  <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                    <CalendarIcon className="w-4 h-4 text-amber-400" />
-                    {new Date().toLocaleString('tr-TR')}
+                  <div className="text-xs text-gray-500 mt-2">
+                    📅 {new Date().toLocaleString('tr-TR')}
                   </div>
                 </div>
               </div>
