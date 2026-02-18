@@ -9,7 +9,7 @@ import {
   Eye, 
   X, 
   MapPin, 
-  Inbox
+  Inbox,
   BarChart3, 
   Package, 
   Layers, 
