@@ -1,7 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, Building, User, Eye, X, MapPin, BarChart3, Package, Layers, Home, ChevronRight } from 'lucide-react';
+import { 
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  BuildingOfficeIcon,
+  UserIcon,
+  EyeIcon,
+  XMarkIcon,
+  MapPinIcon,
+  ChartBarIcon,
+  CubeIcon,
+  Squares2X2Icon,
+  HomeIcon,
+  ChevronRightIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ArchiveBoxIcon,
+  BeakerIcon,
+  ClockIcon,
+  CalendarIcon,
+  DocumentTextIcon,
+  FolderIcon,
+  SparklesIcon,
+  TagIcon
+} from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabase/client';
 import KartelaDetay from './KartelaDetay';
 import type { Database } from '@/types/supabase';
@@ -50,35 +73,35 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
   // Odaya göre başlık ve açıklama
   const odaBilgileri = {
     'AMIR_ODASI': {
-      icon: User,
+      icon: UserIcon,
       title: 'Amir Kartela İzleme',
       description: 'Tüm kartelaları görüntüleyebilir ve analiz edebilirsiniz.',
       yetki: 'Tam Yetki',
       color: 'purple'
     },
     'KARTELA_ODASI': {
-      icon: Building,
+      icon: BuildingOfficeIcon,
       title: 'Kartela Arama Sistemi',
       description: 'Kartela barkodlarını taratın veya renk kodları ile arama yapın.',
       yetki: 'Operasyonel Yetki',
       color: 'blue'
     },
     'LAB_ODASI': {
-      icon: Eye,
+      icon: BeakerIcon,
       title: 'Lab Renk Analizi',
       description: 'Renk analizi ve pantone atama.',
       yetki: 'Lab Yetkisi',
       color: 'pink'
     },
     'YONETICI_ODASI': {
-      icon: User,
+      icon: UserIcon,
       title: 'Yönetici Dashboard',
       description: 'Sistem yönetimi ve raporlama.',
       yetki: 'Yönetici Yetkisi',
       color: 'red'
     },
     'KALITE_KONTROL': {
-      icon: Eye,
+      icon: CheckCircleIcon,
       title: 'Kalite Kontrol',
       description: 'Kalite kontrol ve onay işlemleri.',
       yetki: 'Kalite Yetkisi',
@@ -87,7 +110,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
   };
 
   const odaBilgi = odaBilgileri[currentRoom as keyof typeof odaBilgileri] || {
-    icon: Eye,
+    icon: EyeIcon,
     title: 'Kartela Arama',
     description: 'Kartela bilgilerini görüntüleyin.',
     yetki: 'Sınırlı Yetki',
@@ -278,8 +301,8 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     if (!kartela.hucreler) {
       return (
         <div className="flex items-center text-gray-400">
-          <MapPin className="h-4 w-4 mr-2" />
-          <span className="text-sm">📍 Hücreye yerleştirilmemiş</span>
+          <MapPinIcon className="h-4 w-4 mr-2" />
+          <span className="text-sm">Hücreye yerleştirilmemiş</span>
         </div>
       );
     }
@@ -289,7 +312,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     return (
       <div className="space-y-2">
         <div className="flex items-center text-sm">
-          <MapPin className="h-3 w-3 mr-2 text-purple-500" />
+          <MapPinIcon className="h-3 w-3 mr-2 text-purple-500" />
           <span className="font-medium">{hucre.hucre_kodu} • {hucre.hucre_adi}</span>
           <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
             {hucre.mevcut_kartela_sayisi || 0}/{hucre.kapasite || 0}
@@ -300,16 +323,19 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         <div className="mt-1">
           {!hucre.aktif ? (
             <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
-              ⚠️ Hücre Pasif
+              <XCircleIcon className="inline h-3 w-3 mr-1" />
+              Hücre Pasif
             </span>
           ) : hucre.kapasite && hucre.mevcut_kartela_sayisi && 
              hucre.mevcut_kartela_sayisi >= hucre.kapasite ? (
             <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
-              🔴 Dolu
+              <XCircleIcon className="inline h-3 w-3 mr-1" />
+              Dolu
             </span>
           ) : (
             <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-              ✅ Uygun
+              <CheckCircleIcon className="inline h-3 w-3 mr-1" />
+              Uygun
             </span>
           )}
         </div>
@@ -347,19 +373,22 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
   const getDurumBadge = (durum: string) => {
     const durumlar = {
-      'AKTIF': { bg: 'bg-green-100', text: 'text-green-800', label: '✅ Aktif' },
-      'DOLU': { bg: 'bg-blue-100', text: 'text-blue-800', label: '🔵 Dolu (Arşiv Bekliyor)' },
-      'KARTELA_ARSIV': { bg: 'bg-gray-100', text: 'text-gray-800', label: '📦 Kartela Arşivi' },
-      'KALITE_ARSIV': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: '🏷️ Kalite Arşivi' },
-      'KULLANIM_DISI': { bg: 'bg-red-100', text: 'text-red-800', label: '⛔ Kullanım Dışı' },
-      'LAB_DEGERLENDIRME': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: '🔬 Lab Değerlendirme' }
+      'AKTIF': { bg: 'bg-green-100', text: 'text-green-800', label: 'Aktif', icon: CheckCircleIcon },
+      'DOLU': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Dolu (Arşiv Bekliyor)', icon: ArchiveBoxIcon },
+      'KARTELA_ARSIV': { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Kartela Arşivi', icon: FolderIcon },
+      'KALITE_ARSIV': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Kalite Arşivi', icon: SparklesIcon },
+      'KULLANIM_DISI': { bg: 'bg-red-100', text: 'text-red-800', label: 'Kullanım Dışı', icon: XCircleIcon },
+      'LAB_DEGERLENDIRME': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Lab Değerlendirme', icon: BeakerIcon }
     };
 
     const durumBilgi = durumlar[durum as keyof typeof durumlar] || 
-      { bg: 'bg-gray-100', text: 'text-gray-800', label: durum };
+      { bg: 'bg-gray-100', text: 'text-gray-800', label: durum, icon: DocumentTextIcon };
+    
+    const Icon = durumBilgi.icon;
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${durumBilgi.bg} ${durumBilgi.text}`}>
+      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${durumBilgi.bg} ${durumBilgi.text}`}>
+        <Icon className="h-3 w-3" />
         {durumBilgi.label}
       </span>
     );
@@ -369,13 +398,13 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
     const oran = (goz_sayisi / maksimum_goz) * 100;
     
     if (goz_sayisi === 0) {
-      return { text: `🆕 Yeni (0/${maksimum_goz})`, color: 'text-gray-600' };
+      return { text: `Yeni (0/${maksimum_goz})`, color: 'text-gray-600', icon: SparklesIcon };
     } else if (oran < 50) {
-      return { text: `🟢 ${goz_sayisi}/${maksimum_goz}`, color: 'text-green-600' };
+      return { text: `${goz_sayisi}/${maksimum_goz}`, color: 'text-green-600', icon: CheckCircleIcon };
     } else if (oran < 100) {
-      return { text: `🟡 ${goz_sayisi}/${maksimum_goz}`, color: 'text-yellow-600' };
+      return { text: `${goz_sayisi}/${maksimum_goz}`, color: 'text-yellow-600', icon: ClockIcon };
     } else {
-      return { text: `🔴 DOLU (${maksimum_goz}/${maksimum_goz})`, color: 'text-red-600' };
+      return { text: `DOLU (${maksimum_goz}/${maksimum_goz})`, color: 'text-red-600', icon: ArchiveBoxIcon };
     }
   };
 
@@ -403,23 +432,29 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
-                📍 {currentRoom}
+              <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium inline-flex items-center gap-1">
+                <MapPinIcon className="h-3 w-3" />
+                {currentRoom}
               </span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                🔑 {odaBilgi.yetki}
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium inline-flex items-center gap-1">
+                <KeyIcon className="h-3 w-3" />
+                {odaBilgi.yetki}
               </span>
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                <Package className="inline w-3 h-3 mr-1" /> {stats.total}
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium inline-flex items-center gap-1">
+                <CubeIcon className="h-3 w-3" />
+                {stats.total}
               </span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                ✅ {stats.aktif}
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium inline-flex items-center gap-1">
+                <CheckCircleIcon className="h-3 w-3" />
+                {stats.aktif}
               </span>
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                🔵 {stats.dolu}
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium inline-flex items-center gap-1">
+                <ArchiveBoxIcon className="h-3 w-3" />
+                {stats.dolu}
               </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
-                📦 {stats.arsiv}
+              <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium inline-flex items-center gap-1">
+                <FolderIcon className="h-3 w-3" />
+                {stats.arsiv}
               </span>
             </div>
           </div>
@@ -429,7 +464,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
             </div>
             <input
               type="text"
@@ -448,8 +483,9 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             {/* Arama İpucu */}
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
               {searchQuery.length === 4 && /^\d{4}$/.test(searchQuery) && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                  🔍 Son 4 hane aranıyor: {searchQuery}
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                  <TagIcon className="h-3 w-3" />
+                  Son 4 hane aranıyor: {searchQuery}
                 </span>
               )}
             </div>
@@ -457,7 +493,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
           <div className="relative min-w-[180px]">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Filter className="h-5 w-5 text-gray-400" />
+              <FunnelIcon className="h-5 w-5 text-gray-400" />
             </div>
             <select
               value={filterDurum}
@@ -465,18 +501,18 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               className="w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white text-gray-800"
             >
               <option value="">Tüm Durumlar</option>
-              <option value="aktif">✅ Aktif</option>
-              <option value="dolu">🔵 Dolu</option>
-              <option value="arsivde">📦 Kartela Arşivi</option>
-              <option value="kalitede">🏷️ Kalite Arşivi</option>
-              <option value="kullanim_disi">⛔ Kullanım Dışı</option>
+              <option value="aktif">Aktif</option>
+              <option value="dolu">Dolu</option>
+              <option value="arsivde">Kartela Arşivi</option>
+              <option value="kalitede">Kalite Arşivi</option>
+              <option value="kullanim_disi">Kullanım Dışı</option>
             </select>
           </div>
 
           <button
             onClick={handleSearch}
             disabled={loading}
-            className={`px-6 py-3 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 transition whitespace-nowrap ${
+            className={`px-6 py-3 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 transition whitespace-nowrap inline-flex items-center justify-center gap-2 ${
               odaBilgi.color === 'purple' ? 'bg-purple-600 focus:ring-purple-500' :
               odaBilgi.color === 'blue' ? 'bg-blue-600 focus:ring-blue-500' :
               odaBilgi.color === 'pink' ? 'bg-pink-600 focus:ring-pink-500' :
@@ -485,27 +521,32 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               'bg-gray-600 focus:ring-gray-500'
             }`}
           >
-            {loading ? '🔍 Aranıyor...' : 'Ara'}
+            <MagnifyingGlassIcon className="h-4 w-4" />
+            {loading ? 'Aranıyor...' : 'Ara'}
           </button>
         </div>
 
         {/* Son 4 Hane Arama Bilgilendirme */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium">
-            🔍 <strong>Son 4 Hane Arama:</strong>
+          <p className="text-sm text-blue-800 font-medium inline-flex items-center gap-1">
+            <TagIcon className="h-4 w-4" />
+            <strong>Son 4 Hane Arama:</strong>
             <span className="ml-2 text-blue-600">
               {"\"23011737.1\" kodunu sadece \"1737\" yazarak arayabilirsiniz"}
             </span>
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
-              {"Örnek 1: 1737 → 23011737.1 ve 24011737.2'yi bulur"}
+            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded inline-flex items-center gap-1">
+              <CubeIcon className="h-3 w-3" />
+              Örnek 1: 1737 → 23011737.1 ve 24011737.2'yi bulur
             </span>
-            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
-              {"Örnek 2: 23011737.1 → Tam kod araması"}
+            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded inline-flex items-center gap-1">
+              <DocumentTextIcon className="h-3 w-3" />
+              Örnek 2: 23011737.1 → Tam kod araması
             </span>
-            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded">
-              {"Örnek 3: KIRMIZI → Renk adı araması"}
+            <span className="px-2 py-1 bg-white border border-blue-200 text-blue-700 text-xs rounded inline-flex items-center gap-1">
+              <TagIcon className="h-3 w-3" />
+              Örnek 3: KIRMIZI → Renk adı araması
             </span>
           </div>
         </div>
@@ -515,7 +556,8 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-14 w-14 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600 font-medium">{"Supabase'den kartelalar aranıyor..."}</p>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-gray-500 mt-2 inline-flex items-center gap-1">
+              <MapPinIcon className="h-3 w-3" />
               {currentRoom} • {searchQuery.length === 4 ? `Son 4 hane: ${searchQuery}` : `Tam kod: ${searchQuery}`}
             </p>
           </div>
@@ -525,19 +567,24 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         {!loading && sonuclar.length > 0 && (
           <div className="mt-6">
             <div className="flex justify-between items-center mb-6">
-              <h4 className="text-xl font-semibold text-gray-900">
-                {currentRoom === 'AMIR_ODASI' ? '📊 Analiz Sonuçları' : 
-                 currentRoom === 'KARTELA_ODASI' ? '📦 Bulunan Kartelalar' :
-                 currentRoom === 'LAB_ODASI' ? '🔬 Lab Kartelaları' :
-                 '📦 Kartelalar'}
+              <h4 className="text-xl font-semibold text-gray-900 inline-flex items-center gap-2">
+                {currentRoom === 'AMIR_ODASI' ? <ChartBarIcon className="h-5 w-5" /> : 
+                 currentRoom === 'KARTELA_ODASI' ? <CubeIcon className="h-5 w-5" /> :
+                 currentRoom === 'LAB_ODASI' ? <BeakerIcon className="h-5 w-5" /> :
+                 <FolderIcon className="h-5 w-5" />}
+                {currentRoom === 'AMIR_ODASI' ? 'Analiz Sonuçları' : 
+                 currentRoom === 'KARTELA_ODASI' ? 'Bulunan Kartelalar' :
+                 currentRoom === 'LAB_ODASI' ? 'Lab Kartelaları' :
+                 'Kartelalar'}
                 <span className="ml-3 text-blue-600">({sonuclar.length})</span>
               </h4>
               <div className="text-sm text-green-600 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 Supabase • Gerçek Veritabanı
                 {searchQuery.length === 4 && (
-                  <span className="ml-2 text-blue-600">
-                    • Son 4 hane: {searchQuery}
+                  <span className="ml-2 text-blue-600 inline-flex items-center gap-1">
+                    <TagIcon className="h-3 w-3" />
+                    Son 4 hane: {searchQuery}
                   </span>
                 )}
               </div>
@@ -546,6 +593,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sonuclar.map((kartela) => {
                 const gozDurumu = getGozDurumu(kartela.goz_sayisi || 0, kartela.maksimum_goz || 14);
+                const GozIcon = gozDurumu.icon;
                 
                 return (
                   <div 
@@ -561,13 +609,17 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                         <div className="text-xs text-gray-500">
                           Renk: {kartela.renk_kodu}
                           {kartela.renk_masalari?.pantone_kodu && (
-                            <span className="ml-2">• Pantone: {kartela.renk_masalari.pantone_kodu}</span>
+                            <span className="ml-2 inline-flex items-center gap-1">
+                              <TagIcon className="h-3 w-3" />
+                              Pantone: {kartela.renk_masalari.pantone_kodu}
+                            </span>
                           )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {getDurumBadge(kartela.durum || 'AKTIF')}
-                        <div className={`text-xs font-medium ${gozDurumu.color}`}>
+                        <div className={`text-xs font-medium inline-flex items-center gap-1 ${gozDurumu.color}`}>
+                          <GozIcon className="h-3 w-3" />
                           {gozDurumu.text}
                         </div>
                       </div>
@@ -578,31 +630,36 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                         {kartela.renk_adi}
                       </div>
                       {kartela.musteri_adi && (
-                        <div className="text-gray-600 mt-1 text-sm">
-                          🏢 {kartela.musteri_adi}
+                        <div className="text-gray-600 mt-1 text-sm inline-flex items-center gap-1">
+                          <BuildingOfficeIcon className="h-3 w-3" />
+                          {kartela.musteri_adi}
                         </div>
                       )}
                       {kartela.proje_kodu && (
-                        <div className="text-gray-500 text-xs mt-1">
-                          📋 Proje: {kartela.proje_kodu}
+                        <div className="text-gray-500 text-xs mt-1 inline-flex items-center gap-1">
+                          <DocumentTextIcon className="h-3 w-3" />
+                          Proje: {kartela.proje_kodu}
                         </div>
                       )}
                     </div>
                     
                     {/* HÜCRE KONUMU BÖLÜMÜ */}
                     <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="text-xs text-gray-500 font-medium mb-2">
-                        📍 KONUM BİLGİSİ
+                      <div className="text-xs text-gray-500 font-medium mb-2 inline-flex items-center gap-1">
+                        <MapPinIcon className="h-3 w-3" />
+                        KONUM BİLGİSİ
                       </div>
                       {renderHucreKonumu(kartela)}
                     </div>
                     
                     <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                      <span className="text-gray-500 text-xs">
-                        📅 {formatTarih(kartela.olusturulma_tarihi || '')}
+                      <span className="text-gray-500 text-xs inline-flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3" />
+                        {formatTarih(kartela.olusturulma_tarihi || '')}
                       </span>
-                      <span className="text-blue-600 font-medium text-sm">
-                        Detay →
+                      <span className="text-blue-600 font-medium text-sm inline-flex items-center gap-1">
+                        Detay
+                        <ChevronRightIcon className="h-3 w-3" />
                       </span>
                     </div>
                   </div>
@@ -611,12 +668,14 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
             </div>
             
             <div className="mt-6 p-3 bg-gray-50 rounded-lg border text-center">
-              <p className="text-sm text-gray-600">
-                💡 Kartelaya tıklayarak <strong>detay bilgilerini</strong> ve <strong>hareket geçmişini</strong> görüntüleyin.
+              <p className="text-sm text-gray-600 inline-flex items-center gap-1">
+                <SparklesIcon className="h-4 w-4 text-yellow-500" />
+                Kartelaya tıklayarak <strong>detay bilgilerini</strong> ve <strong>hareket geçmişini</strong> görüntüleyin.
               </p>
               {getLast4Digits(searchQuery) && (
-                <p className="text-sm text-blue-600 mt-2">
-                  🔍 <strong>{getLast4Digits(searchQuery)}</strong> son 4 hanesi ile <strong>{sonuclar.length}</strong> kartela bulundu
+                <p className="text-sm text-blue-600 mt-2 inline-flex items-center gap-1">
+                  <TagIcon className="h-4 w-4" />
+                  <strong>{getLast4Digits(searchQuery)}</strong> son 4 hanesi ile <strong>{sonuclar.length}</strong> kartela bulundu
                 </p>
               )}
             </div>
@@ -625,26 +684,26 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
 
         {!loading && searchQuery && sonuclar.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            <div className="text-5xl mb-6">🔍</div>
+            <MagnifyingGlassIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
             <p className="text-xl font-medium">{`"${searchQuery}" için sonuç bulunamadı`}</p>
             <p className="text-gray-600 mt-2">
               {searchQuery.length === 4 ?
                 `${searchQuery} son 4 hanesi ile eşleşen kartela bulunamadı` :
                 'Farklı bir renk kodu, kartela no veya renk adı deneyin'}
             </p>
-            <div className="mt-6 text-sm text-green-600">
-              📍 {currentRoom} • Supabase • Gerçek Veritabanı
+            <div className="mt-6 text-sm text-green-600 inline-flex items-center gap-1">
+              <MapPinIcon className="h-3 w-3" />
+              {currentRoom} • Supabase • Gerçek Veritabanı
             </div>
           </div>
         )}
 
         {!loading && !searchQuery && sonuclar.length === 0 && (
           <div className="text-center py-12 text-gray-400">
-            <div className="text-5xl mb-6">
-              {currentRoom === 'AMIR_ODASI' ? '📊' :
-               currentRoom === 'KARTELA_ODASI' ? '🎨' :
-               currentRoom === 'LAB_ODASI' ? '🔬' : '📦'}
-            </div>
+            {currentRoom === 'AMIR_ODASI' ? <ChartBarIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" /> :
+             currentRoom === 'KARTELA_ODASI' ? <CubeIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" /> :
+             currentRoom === 'LAB_ODASI' ? <BeakerIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" /> :
+             <FolderIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />}
             <p className="text-xl font-medium">
               {currentRoom === 'AMIR_ODASI'
                 ? 'Kartela analizi için arama yapın'
@@ -662,8 +721,9 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                 setSearchQuery('');
                 handleSearch();
               }}
-              className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
             >
+              <CubeIcon className="h-4 w-4" />
               Tüm Kartelaları Göster
             </button>
           </div>
@@ -678,13 +738,16 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Kartela Detayları</h2>
-                  <p className="text-gray-600">{selectedKartela.kartela_no || `KRT-${selectedKartela.id}`} • {selectedKartela.renk_adi}</p>
+                  <p className="text-gray-600 inline-flex items-center gap-1">
+                    <CubeIcon className="h-4 w-4" />
+                    {selectedKartela.kartela_no || `KRT-${selectedKartela.id}`} • {selectedKartela.renk_adi}
+                  </p>
                 </div>
                 <button
                   onClick={closeModal}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
                 >
-                  <X className="h-5 w-5" />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
               
@@ -693,8 +756,9 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
               <div className="mt-6 pt-6 border-t flex justify-end gap-3">
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition inline-flex items-center gap-2"
                 >
+                  <XMarkIcon className="h-4 w-4" />
                   Kapat
                 </button>
                 <button 
@@ -702,17 +766,20 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                     navigator.clipboard.writeText(selectedKartela.kartela_no || `KRT-${selectedKartela.id}`);
                     alert('Kartela no kopyalandı!');
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-2"
                 >
+                  <DocumentTextIcon className="h-4 w-4" />
                   Kartela No Kopyala
                 </button>
                 {(currentRoom === 'KARTELA_ODASI' || currentRoom === 'YONETICI_ODASI') && (
-                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition inline-flex items-center gap-2">
+                    <MapPinIcon className="h-4 w-4" />
                     Lokasyon Güncelle
                   </button>
                 )}
                 {currentRoom === 'LAB_ODASI' && (
-                  <button className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition">
+                  <button className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition inline-flex items-center gap-2">
+                    <TagIcon className="h-4 w-4" />
                     Pantone Ata
                   </button>
                 )}
@@ -722,5 +789,14 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         </div>
       )}
     </>
+  );
+}
+
+// KeyIcon component'i eklenmeli (heroicons'da yok)
+function KeyIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.179-1.454.642L9 19.5 5.25 15.75l1.188-1.188c.255-.255.415-.6.45-.973a6 6 0 016-6.75h0z" />
+    </svg>
   );
 }
