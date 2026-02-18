@@ -9,6 +9,7 @@ import {
   Eye, 
   X, 
   MapPin, 
+  Inbox
   BarChart3, 
   Package, 
   Layers, 
@@ -307,7 +308,7 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
         <div className="flex items-center text-gray-400">
           <MapPin className="h-4 w-4 mr-2" />
           <span className="text-sm flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> Hücreye yerleştirilmemiş
+            <Inbox className="h-3 w-3" /> Hücreye yerleştirilmemiş
           </span>
         </div>
       );
@@ -578,9 +579,9 @@ export default function KartelaSearch({ currentRoom, currentUserId }: KartelaSea
                  currentRoom === 'KARTELA_ODASI' ? <Package className="h-5 w-5" /> :
                  currentRoom === 'LAB_ODASI' ? <Beaker className="h-5 w-5" /> :
                  <Folder className="h-5 w-5" />}
-                {currentRoom === 'AMIR_ODASI' ? 'Analiz Sonuçları' : 
+                {currentRoom === 'AMIR_ODASI' ? 'Bulunan Kartelalar' : 
                  currentRoom === 'KARTELA_ODASI' ? 'Bulunan Kartelalar' :
-                 currentRoom === 'LAB_ODASI' ? 'Lab Kartelaları' :
+                 currentRoom === 'LAB_ODASI' ? 'Bulunan Kartelalar' :
                  'Kartelalar'}
                 <span className="ml-3 text-blue-600">({sonuclar.length})</span>
               </h4>
