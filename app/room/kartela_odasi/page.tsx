@@ -8,7 +8,7 @@ import type { Database } from '@/types/supabase'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaTransfer from '@/components/KartelaTransfer'
 import KartelaCRUD from '@/components/kartela/KartelaCRUD' // YENİ: Import ettik!
-import { QrCode, ClipboardList, Search, Package, Home, ArrowRightLeft, X } from 'lucide-react'
+import { QrCode, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X } from 'lucide-react'
 
 // Supabase client
 const supabase = createClient()
@@ -323,7 +323,7 @@ export default function KartelaOdasiPage() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <Package className="h-4 w-4" />
+              <Sheet className="h-4 w-4" />
               Kartela Yönetimi
             </button>
             
