@@ -1,7 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // ← useEffect ekle
-import { Clock, MapPin, User, Calendar, ArrowRight, Package, Eye, Archive, History, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { 
+  Clock, 
+  MapPin, 
+  User, 
+  Calendar, 
+  ArrowRight, 
+  Package, 
+  Eye, 
+  Archive, 
+  History, 
+  Activity,
+  PlusCircleIcon,
+  HomeIcon,
+  UserIcon,
+  InboxIcon,
+  TrashIcon,
+  ArrowPathIcon,
+  DocumentTextIcon,
+  SparklesIcon
+} from '@heroicons/react/24/outline';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 
@@ -25,17 +44,15 @@ type HareketLog = Database['public']['Tables']['hareket_loglari']['Row'];
 
 interface KartelaDetayProps {
   kartela: Kartela;
-  showHistory?: boolean; // Hareket geçmişini göster/gizle
+  showHistory?: boolean;
 }
 
 export default function KartelaDetay({ kartela, showHistory = true }: KartelaDetayProps) {
   const [hareketler, setHareketler] = useState<HareketLog[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // EN ÖNEMLİ DEĞİŞİKLİK: as any ekle
   const supabase = createClient() as any;
 
-  // Hareket geçmişini yükle
   useEffect(() => {
     if (showHistory && kartela.kartela_no) {
       fetchHareketGecmisi();
@@ -61,31 +78,28 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
     }
   };
 
-  // Durum renkleri
   const getDurumRenk = (durum: string) => {
     switch (durum) {
-      case 'AKTIF': return { bg: 'bg-green-100', text: 'text-green-800', label: '✅ Aktif' };
-      case 'DOLU': return { bg: 'bg-blue-100', text: 'text-blue-800', label: '🔵 Dolu' };
-      case 'KARTELA_ARSIV': return { bg: 'bg-gray-100', text: 'text-gray-800', label: '📦 Arşiv' };
-      case 'KALITE_ARSIV': return { bg: 'bg-indigo-100', text: 'text-indigo-800', label: '🏷️ Kalite Arşivi' };
-      case 'KULLANIM_DISI': return { bg: 'bg-red-100', text: 'text-red-800', label: '⛔ Kullanım Dışı' };
+      case 'AKTIF': return { bg: 'bg-green-100', text: 'text-green-800', label: 'Aktif' };
+      case 'DOLU': return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Dolu' };
+      case 'KARTELA_ARSIV': return { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Arşiv' };
+      case 'KALITE_ARSIV': return { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Kalite Arşivi' };
+      case 'KULLANIM_DISI': return { bg: 'bg-red-100', text: 'text-red-800', label: 'Kullanım Dışı' };
       default: return { bg: 'bg-gray-100', text: 'text-gray-800', label: durum };
     }
   };
 
   const durumBilgi = getDurumRenk(kartela.durum|| 'AKTIF');
   
-  // Göz durumu
   const getGozDurumu = (goz_sayisi: number) => {
-    if (goz_sayisi === 0) return { text: '🆕 Yeni (0/14)', color: 'text-gray-600' };
-    if (goz_sayisi < 7) return { text: `🟢 ${goz_sayisi}/14`, color: 'text-green-600' };
-    if (goz_sayisi < 14) return { text: `🟡 ${goz_sayisi}/14`, color: 'text-yellow-600' };
-    return { text: `🔴 DOLU (14/14)`, color: 'text-red-600' };
+    if (goz_sayisi === 0) return { text: `Yeni (0/14)`, color: 'text-gray-600' };
+    if (goz_sayisi < 7) return { text: `${goz_sayisi}/14`, color: 'text-green-600' };
+    if (goz_sayisi < 14) return { text: `${goz_sayisi}/14`, color: 'text-yellow-600' };
+    return { text: `DOLU (14/14)`, color: 'text-red-600' };
   };
 
   const gozDurumu = getGozDurumu(kartela.goz_sayisi|| 0);
   
-  // Tarih formatı
   const formatTarih = (tarih: string) => {
     return new Date(tarih).toLocaleDateString('tr-TR', {
       year: 'numeric',
@@ -96,7 +110,6 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
     });
   };
 
-  // Kısa tarih formatı
   const formatKisaTarih = (tarih: string) => {
     return new Date(tarih).toLocaleDateString('tr-TR', {
       month: 'short',
@@ -106,17 +119,16 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
     });
   };
 
-  // Hareket tipi ikonu
   const getHareketIcon = (tip: string) => {
     switch (tip) {
-      case 'OLUSTURMA': return '🆕';
-      case 'GOZ_EKLEME': return '➕';
-      case 'HUCRE_YERLESTIRME': return '🏠';
-      case 'MUSTERI_ATAMA': return '👤';
-      case 'DOLDU_ARSIV': return '📦';
-      case 'SILINDI': return '🗑️';
-      case 'DURUM_DEGISIMI': return '🔄';
-      default: return '📝';
+      case 'OLUSTURMA': return <SparklesIcon className="h-6 w-6 text-green-500" />;
+      case 'GOZ_EKLEME': return <PlusCircleIcon className="h-6 w-6 text-blue-500" />;
+      case 'HUCRE_YERLESTIRME': return <HomeIcon className="h-6 w-6 text-yellow-500" />;
+      case 'MUSTERI_ATAMA': return <UserIcon className="h-6 w-6 text-purple-500" />;
+      case 'DOLDU_ARSIV': return <InboxIcon className="h-6 w-6 text-orange-500" />;
+      case 'SILINDI': return <TrashIcon className="h-6 w-6 text-red-500" />;
+      case 'DURUM_DEGISIMI': return <ArrowPathIcon className="h-6 w-6 text-indigo-500" />;
+      default: return <DocumentTextIcon className="h-6 w-6 text-gray-500" />;
     }
   };
 
@@ -297,7 +309,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
             <div className="space-y-3">
               {hareketler.map((hareket) => (
                 <div key={hareket.id} className="flex items-start gap-3 p-3 bg-white rounded border">
-                  <div className="text-2xl">{getHareketIcon(hareket.hareket_tipi || '')}</div>
+                  <div className="flex-shrink-0">{getHareketIcon(hareket.hareket_tipi || '')}</div>
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <div>
