@@ -2,24 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  Clock, 
-  MapPin, 
-  User, 
-  Calendar, 
-  ArrowRight, 
-  Package, 
-  Eye, 
-  Archive, 
-  History, 
-  Activity,
-  PlusCircleIcon,
-  HomeIcon,
+  MapPinIcon,
   UserIcon,
-  InboxIcon,
-  TrashIcon,
+  CalendarIcon,
+  ArrowRightIcon,
+  TableCellsIcon,  // ← CubeIcon yerine TableCellsIcon
+  EyeIcon,
+  ArchiveBoxIcon,
+  ClockIcon,
   ArrowPathIcon,
   DocumentTextIcon,
-  SparklesIcon
+  PlusCircleIcon,
+  HomeIcon,
+  InboxIcon,
+  TrashIcon,
+  SparklesIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
@@ -160,7 +158,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
         {/* Temel Bilgiler */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="flex items-center gap-3 mb-3">
-            <Package className="h-5 w-5 text-blue-600" />
+            <TableCellsIcon className="h-5 w-5 text-blue-600" />  {/* ← CubeIcon yerine TableCellsIcon */}
             <h4 className="font-semibold text-gray-900">Kartela Bilgileri</h4>
           </div>
           <div className="space-y-3">
@@ -202,7 +200,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
         {/* Lokasyon Bilgisi */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="flex items-center gap-3 mb-3">
-            <MapPin className="h-5 w-5 text-green-600" />
+            <MapPinIcon className="h-5 w-5 text-green-600" />
             <h4 className="font-semibold text-gray-900">Lokasyon</h4>
           </div>
           <div className="space-y-3">
@@ -231,7 +229,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
               </>
             ) : (
               <div className="text-center py-4">
-                <Eye className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <EyeIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">Kartela henüz bir hücreye yerleştirilmemiş</p>
                 <p className="text-sm text-gray-400 mt-1">QR okutarak hücreye yerleştirin</p>
               </div>
@@ -243,7 +241,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
       {/* Sistem Bilgileri */}
       <div className="bg-gray-50 p-4 rounded-lg mb-8">
         <div className="flex items-center gap-3 mb-3">
-          <Calendar className="h-5 w-5 text-purple-600" />
+          <CalendarIcon className="h-5 w-5 text-purple-600" />
           <h4 className="font-semibold text-gray-900">Sistem Bilgileri</h4>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,7 +285,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <History className="h-5 w-5 text-blue-600" />
+              <ClockIcon className="h-5 w-5 text-blue-600" />
               <h4 className="font-semibold text-gray-900">Hareket Geçmişi</h4>
             </div>
             <button
@@ -295,7 +293,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
               disabled={loadingHistory}
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
             >
-              <Activity className="h-4 w-4" />
+              <ChartBarIcon className="h-4 w-4" />
               {loadingHistory ? 'Yükleniyor...' : 'Yenile'}
             </button>
           </div>
@@ -338,7 +336,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
                         )}
                         {hareket.yeni_durum && (
                           <>
-                            <ArrowRight className="h-3 w-3 text-gray-400" />
+                            <ArrowRightIcon className="h-3 w-3 text-gray-400" />
                             <span className="text-gray-500">Yeni:</span>
                             <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">{hareket.yeni_durum}</span>
                           </>
@@ -362,7 +360,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
       {(kartela.durum === 'KULLANIM_DISI' || kartela.silindi) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-red-800 mb-2">
-            <Archive className="h-5 w-5" />
+            <ArchiveBoxIcon className="h-5 w-5" />
             <h4 className="font-semibold">Kullanım Dışı Bilgisi</h4>
           </div>
           <p className="text-red-700 text-sm">
