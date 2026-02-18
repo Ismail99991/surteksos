@@ -17,7 +17,7 @@ import {
   InboxIcon,
   TrashIcon,
   SparklesIcon,
-  UpdateIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
@@ -293,7 +293,7 @@ export default function KartelaDetay({ kartela, showHistory = true }: KartelaDet
               disabled={loadingHistory}
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
             >
-              <UpdateIcon className="h-4 w-4" />
+              <ArrowPathIcon className="h-4 w-4" />
               {loadingHistory ? 'Yükleniyor...' : 'Yenile'}
             </button>
           </div>
