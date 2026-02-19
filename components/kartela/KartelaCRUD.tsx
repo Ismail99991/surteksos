@@ -17,7 +17,8 @@ import {
   Palette,
   Hash,
   Eye,
-  Printer
+  Printer,
+  History
 } from 'lucide-react'
 import Link from 'next/link'
 import QRCode from 'qrcode'
@@ -40,9 +41,10 @@ interface Kartela {
 
 interface KartelaCRUDProps {
   currentUserId: number
+  currentOdaId?: number
 }
 
-const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
+const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }) => {
   const [kartelalar, setKartelalar] = useState<Kartela[]>([])
   const [filteredKartelalar, setFilteredKartelalar] = useState<Kartela[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,6 +56,37 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
   const [selectedKartela, setSelectedKartela] = useState<Kartela | null>(null)
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
 
+  // ============ LOG FONKSİYONU ============
+  const islemLogla = async (
+    islemTipi: string, 
+    kartelaId: number, 
+    kartelaNo: string, 
+    detay: string,
+    hata?: string
+  ) => {
+    try {
+      const { error: logError } = await supabase
+        .from('hareket_loglari')
+        .insert([{
+          kullanici_id: currentUserId,
+          oda_id: currentOdaId || null,
+          islem_tipi: islemTipi,
+          kayit_id: kartelaId,
+          kayit_tipi: 'kartela',
+          aciklama: detay,
+          hata: hata || null,
+          ip_adresi: null,
+          tarayici: navigator.userAgent,
+          created_at: new Date().toISOString()
+        }])
+
+      if (logError) console.error('Log kaydedilemedi:', logError)
+    } catch (err) {
+      console.error('Loglama hatası:', err)
+    }
+  }
+
+  // ============ VERİ ÇEKME ============
   useEffect(() => {
     fetchKartelalar()
   }, [showArchived])
@@ -83,6 +116,7 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
     }
   }
 
+  // ============ FİLTRELEME ============
   useEffect(() => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -97,9 +131,10 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
     }
   }, [searchTerm, kartelalar])
 
+  // ============ QR KOD İŞLEMLERİ ============
   const generateQRCode = async (kartela: Kartela) => {
     try {
-      // Benzersiz karekod içeriği (kartela_no + timestamp + random)
+      // Benzersiz karekod içeriği
       const uniqueCode = `${kartela.kartela_no}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
       
       // QR kodu oluştur
@@ -116,18 +151,131 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
       setQrCodeDataUrl(qrDataUrl)
       setQrModalOpen(true)
 
-      // Karekodu veritabanına kaydet (opsiyonel)
-      await supabase
+      // Karekodu veritabanına kaydet
+      const { error: updateError } = await supabase
         .from('kartelalar')
         .update({ karekod: uniqueCode })
         .eq('id', kartela.id)
 
+      if (updateError) throw updateError
+
+      // QR oluşturma logu
+      await islemLogla(
+        'QR_OLUSTURMA',
+        kartela.id,
+        kartela.kartela_no,
+        `${kartela.renk_adi} (${kartela.renk_kodu}) için QR kod oluşturuldu`
+      )
+
     } catch (err) {
       console.error('QR Kod oluşturma hatası:', err)
       setError('QR kod oluşturulamadı')
+      
+      // Hata logu
+      await islemLogla(
+        'QR_OLUSTURMA',
+        kartela.id,
+        kartela.kartela_no,
+        'QR kod oluşturma başarısız',
+        err instanceof Error ? err.message : 'Bilinmeyen hata'
+      )
     }
   }
 
+  // ============ ARŞİV İŞLEMLERİ ============
+  const handleArchive = async (kartela: Kartela) => {
+    try {
+      setLoading(true)
+      
+      const { error } = await supabase
+        .from('kartelalar')
+        .update({ 
+          silindi: true,
+          durum: 'Arşiv'
+        })
+        .eq('id', kartela.id)
+
+      if (error) throw error
+
+      // Arşivleme logu
+      await islemLogla(
+        'ARSIVLEME',
+        kartela.id,
+        kartela.kartela_no,
+        `${kartela.renk_adi} (${kartela.renk_kodu}) arşive kaldırıldı`
+      )
+
+      setSuccess('Kartela arşive kaldırıldı!')
+      fetchKartelalar()
+    } catch (err) {
+      console.error('Arşivleme hatası:', err)
+      setError('Arşivleme başarısız')
+      
+      // Hata logu
+      await islemLogla(
+        'ARSIVLEME',
+        kartela.id,
+        kartela.kartela_no,
+        'Arşivleme başarısız',
+        err instanceof Error ? err.message : 'Bilinmeyen hata'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRestore = async (id: number) => {
+    try {
+      setLoading(true)
+      
+      // Önce kartela bilgisini al
+      const { data: kartela, error: fetchError } = await supabase
+        .from('kartelalar')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const { error } = await supabase
+        .from('kartelalar')
+        .update({ 
+          silindi: false,
+          durum: 'Aktif'
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      // Geri alma logu
+      await islemLogla(
+        'GERI_ALMA',
+        id,
+        kartela.kartela_no,
+        `${kartela.renk_adi} (${kartela.renk_kodu}) arşivden geri alındı`
+      )
+
+      setSuccess('Kartela arşivden geri alındı!')
+      fetchKartelalar()
+    } catch (err) {
+      console.error('Geri alma hatası:', err)
+      setError('Geri alma işlemi başarısız')
+      
+      // Hata logu
+      const kartelaNo = kartelalar.find(k => k.id === id)?.kartela_no || 'Bilinmiyor'
+      await islemLogla(
+        'GERI_ALMA',
+        id,
+        kartelaNo,
+        'Arşivden geri alma başarısız',
+        err instanceof Error ? err.message : 'Bilinmeyen hata'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ============ YAZDIRMA ============
   const handlePrint = () => {
     const printWindow = window.open('', '_blank')
     if (!printWindow || !selectedKartela) return
@@ -221,24 +369,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
     printWindow.document.close()
   }
 
-  const handleRestore = async (id: number) => {
-    try {
-      setLoading(true)
-      const { error } = await supabase
-        .from('kartelalar')
-        .update({ silindi: false })
-        .eq('id', id)
-
-      if (error) throw error
-      setSuccess('Kartela arşivden geri alındı!')
-      fetchKartelalar()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Geri alma işlemi başarısız')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   if (loading && kartelalar.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -312,6 +442,15 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
               Yeni Kartela
             </Link>
 
+            <Link
+              href="/dashboard/kartela/loglar"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+              title="İşlem Logları"
+            >
+              <History className="h-4 w-4" />
+              Loglar
+            </Link>
+
             <button
               onClick={fetchKartelalar}
               className="p-2 border rounded-lg hover:bg-gray-50 text-gray-600"
@@ -323,7 +462,7 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
         </div>
 
         {/* İstatistikler */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t">
           <div>
             <span className="text-sm text-gray-500">Toplam Kartela</span>
             <p className="text-xl font-bold text-gray-900">{kartelalar.length}</p>
@@ -338,6 +477,12 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
             <span className="text-sm text-gray-500">Arşiv</span>
             <p className="text-xl font-bold text-purple-600">
               {kartelalar.filter(k => k.silindi).length}
+            </p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-500">QR'li</span>
+            <p className="text-xl font-bold text-blue-600">
+              {kartelalar.filter(k => k.karekod).length}
             </p>
           </div>
         </div>
@@ -382,15 +527,12 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      kartela.durum === 'Aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      kartela.durum === 'Aktif' ? 'bg-green-100 text-green-800' : 
+                      kartela.durum === 'Arşiv' ? 'bg-purple-100 text-purple-800' : 
+                      'bg-gray-100 text-gray-800'
                     }`}>
                       {kartela.durum || 'Aktif'}
                     </span>
-                    {kartela.silindi && (
-                      <span className="ml-2 px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
-                        Arşiv
-                      </span>
-                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {!kartela.silindi && (
@@ -401,6 +543,9 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
                       >
                         <Package className="h-4 w-4" />
                       </button>
+                    )}
+                    {kartela.karekod && (
+                      <span className="ml-1 text-xs text-green-600">✓</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -422,13 +567,13 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId }) => {
                           >
                             <Edit className="h-4 w-4" />
                           </Link>
-                          <Link
-                            href={`/dashboard/kartela/transfer/${kartela.id}`}
+                          <button
+                            onClick={() => handleArchive(kartela)}
                             className="p-1 text-purple-600 hover:bg-purple-50 rounded"
                             title="Arşive Kaldır"
                           >
                             <Archive className="h-4 w-4" />
-                          </Link>
+                          </button>
                         </>
                       ) : (
                         <button
