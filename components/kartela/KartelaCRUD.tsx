@@ -42,6 +42,9 @@ interface Kartela {
 interface KartelaCRUDProps {
   currentUserId: number
   currentOdaId?: number
+  onKartelaEklendi?: () => void
+  onKartelaGuncellendi?: () => void
+  onKartelaSilindi?: () => void
 }
 
 const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }) => {
