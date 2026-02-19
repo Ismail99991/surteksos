@@ -480,7 +480,7 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
             </p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">QR'li</span>
+            <span className="text-sm text-gray-500">QR&apos;li</span>
             <p className="text-xl font-bold text-blue-600">
               {kartelalar.filter(k => k.karekod).length}
             </p>
