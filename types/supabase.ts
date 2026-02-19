@@ -148,6 +148,7 @@ export interface Database {
         Row: {
           id: number
           kartela_no: string
+          karekod: string | null
           renk_kodu: string
           renk_adi: string
           goz_sayisi: number | null
@@ -196,6 +197,7 @@ export interface Database {
           silindi?: boolean | null
           silinme_tarihi?: string | null
           silen_kullanici_id?: number | null
+          karekod?: string | null
         }
         Update: {
           id?: number
@@ -222,6 +224,7 @@ export interface Database {
           silindi?: boolean | null
           silinme_tarihi?: string | null
           silen_kullanici_id?: number | null
+          karekod?: string | null
         }
         Relationships: []
       }
