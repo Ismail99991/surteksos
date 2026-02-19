@@ -47,7 +47,13 @@ interface KartelaCRUDProps {
   onKartelaSilindi?: () => void
 }
 
-const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }) => {
+const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ 
+  currentUserId, 
+  currentOdaId,
+  onKartelaEklendi,
+  onKartelaGuncellendi,
+  onKartelaSilindi 
+}) => {
   const [kartelalar, setKartelalar] = useState<Kartela[]>([])
   const [filteredKartelalar, setFilteredKartelalar] = useState<Kartela[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,20 +74,31 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
     hata?: string
   ) => {
     try {
+      const logData: any = {
+        kartela_id: kartelaId,
+        kartela_no: kartelaNo,
+        hareket_tipi: islemTipi,
+        aciklama: detay,
+        kullanici_id: currentUserId,
+        ip_adresi: null,
+        tarih: new Date().toISOString()
+      }
+
+      if (hata) {
+        logData.aciklama = `HATA: ${detay} - ${hata}`
+      }
+
+      if (islemTipi === 'ARSIVLEME') {
+        logData.eski_durum = 'Aktif'
+        logData.yeni_durum = 'Arşiv'
+      } else if (islemTipi === 'GERI_ALMA') {
+        logData.eski_durum = 'Arşiv'
+        logData.yeni_durum = 'Aktif'
+      }
+
       const { error: logError } = await supabase
         .from('hareket_loglari')
-        .insert([{
-          kullanici_id: currentUserId,
-          oda_id: currentOdaId || null,
-          islem_tipi: islemTipi,
-          kayit_id: kartelaId,
-          kayit_tipi: 'kartela',
-          aciklama: detay,
-          hata: hata || null,
-          ip_adresi: null,
-          tarayici: navigator.userAgent,
-          created_at: new Date().toISOString()
-        }])
+        .insert([logData])
 
       if (logError) console.error('Log kaydedilemedi:', logError)
     } catch (err) {
@@ -137,10 +154,8 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
   // ============ QR KOD İŞLEMLERİ ============
   const generateQRCode = async (kartela: Kartela) => {
     try {
-      // Benzersiz karekod içeriği
       const uniqueCode = `${kartela.kartela_no}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
       
-      // QR kodu oluştur
       const qrDataUrl = await QRCode.toDataURL(uniqueCode, {
         width: 300,
         margin: 2,
@@ -154,7 +169,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
       setQrCodeDataUrl(qrDataUrl)
       setQrModalOpen(true)
 
-      // Karekodu veritabanına kaydet
       const { error: updateError } = await supabase
         .from('kartelalar')
         .update({ karekod: uniqueCode })
@@ -162,7 +176,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
 
       if (updateError) throw updateError
 
-      // QR oluşturma logu
       await islemLogla(
         'QR_OLUSTURMA',
         kartela.id,
@@ -174,7 +187,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
       console.error('QR Kod oluşturma hatası:', err)
       setError('QR kod oluşturulamadı')
       
-      // Hata logu
       await islemLogla(
         'QR_OLUSTURMA',
         kartela.id,
@@ -200,7 +212,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
 
       if (error) throw error
 
-      // Arşivleme logu
       await islemLogla(
         'ARSIVLEME',
         kartela.id,
@@ -210,11 +221,11 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
 
       setSuccess('Kartela arşive kaldırıldı!')
       fetchKartelalar()
+      if (onKartelaSilindi) onKartelaSilindi()
     } catch (err) {
       console.error('Arşivleme hatası:', err)
       setError('Arşivleme başarısız')
       
-      // Hata logu
       await islemLogla(
         'ARSIVLEME',
         kartela.id,
@@ -231,7 +242,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
     try {
       setLoading(true)
       
-      // Önce kartela bilgisini al
       const { data: kartela, error: fetchError } = await supabase
         .from('kartelalar')
         .select('*')
@@ -250,7 +260,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
 
       if (error) throw error
 
-      // Geri alma logu
       await islemLogla(
         'GERI_ALMA',
         id,
@@ -264,7 +273,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
       console.error('Geri alma hatası:', err)
       setError('Geri alma işlemi başarısız')
       
-      // Hata logu
       const kartelaNo = kartelalar.find(k => k.id === id)?.kartela_no || 'Bilinmiyor'
       await islemLogla(
         'GERI_ALMA',
@@ -483,7 +491,7 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ currentUserId, currentOdaId }
             </p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">QR&apos;li</span>
+            <span className="text-sm text-gray-500">QR'li</span>
             <p className="text-xl font-bold text-blue-600">
               {kartelalar.filter(k => k.karekod).length}
             </p>
