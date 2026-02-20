@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { HexColorPicker, HexColorInput } from 'react-colorful'
 import { 
   Palette, 
   Plus, 
@@ -51,6 +52,7 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [selectedRenk, setSelectedRenk] = useState<Renk | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [showColorPicker, setShowColorPicker] = useState(false)
   
   const [formData, setFormData] = useState({
     renk_kodu: '',
@@ -184,6 +186,7 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
       aktif: true
     })
     setSelectedRenk(null)
+    setShowColorPicker(false)
   }
 
   const openEditModal = (renk: Renk) => {
@@ -196,6 +199,7 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
       aktif: renk.aktif ?? true
     })
     setModalMode('edit')
+    setShowColorPicker(false)
   }
 
   const openViewModal = (renk: Renk) => {
@@ -212,6 +216,10 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
     if (hexCode) return hexCode
     if (renkKodu?.startsWith('#')) return renkKodu
     return '#cccccc'
+  }
+
+  const handleColorChange = (color: string) => {
+    setFormData({ ...formData, hex_kodu: color })
   }
 
   if (loading && renkler.length === 0) {
@@ -446,7 +454,7 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create/Edit Modal with Color Picker */}
       {(modalMode === 'create' || modalMode === 'edit') && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
@@ -462,24 +470,61 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Color Picker Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Renk Seçici
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-sm hover:scale-105 transition-transform"
+                    style={{ 
+                      backgroundColor: formData.hex_kodu || 
+                        (formData.renk_kodu.startsWith('#') ? formData.renk_kodu : '#cccccc') 
+                    }}
+                  />
+                  
+                  <HexColorInput
+                    color={formData.hex_kodu || ''}
+                    onChange={handleColorChange}
+                    prefixed
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500"
+                    placeholder="#RRGGBB"
+                  />
+                </div>
+
+                {showColorPicker && (
+                  <div className="absolute z-10 mt-2 bg-white p-3 rounded-lg shadow-xl border">
+                    <div className="relative">
+                      <HexColorPicker
+                        color={formData.hex_kodu || '#cccccc'}
+                        onChange={handleColorChange}
+                      />
+                      <button
+                        onClick={() => setShowColorPicker(false)}
+                        className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Renk Kodu <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={formData.renk_kodu}
-                    onChange={(e) => setFormData({ ...formData, renk_kodu: e.target.value })}
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                    placeholder="Örn: 23011737.1"
-                    disabled={modalMode === 'edit'}
-                  />
-                  <div 
-                    className="w-10 h-10 rounded-lg border"
-                    style={{ backgroundColor: formData.hex_kodu || (formData.renk_kodu.startsWith('#') ? formData.renk_kodu : '#cccccc') }}
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={formData.renk_kodu}
+                  onChange={(e) => setFormData({ ...formData, renk_kodu: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  placeholder="Örn: 23011737.1"
+                  disabled={modalMode === 'edit'}
+                />
               </div>
 
               <div>
@@ -505,19 +550,6 @@ const RenkCRUD: React.FC<RenkCRUDProps> = ({
                   onChange={(e) => setFormData({ ...formData, pantone_kodu: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
                   placeholder="Örn: 186 C"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hex Kodu
-                </label>
-                <input
-                  type="text"
-                  value={formData.hex_kodu}
-                  onChange={(e) => setFormData({ ...formData, hex_kodu: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                  placeholder="Örn: #FF0000"
                 />
               </div>
 

@@ -6,19 +6,18 @@ import {
   Package, 
   Plus, 
   Search, 
-  Edit, 
-  Archive, 
   RefreshCw,
   X,
   Check,
   AlertCircle,
-  User,
-  Grid,
-  Palette,
-  Hash,
   Eye,
   Printer,
-  History
+  History,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Download
 } from 'lucide-react'
 import Link from 'next/link'
 import QRCode from 'qrcode'
@@ -37,33 +36,139 @@ interface Kartela {
   durum?: string | null
   silindi?: boolean | null
   karekod?: string | null
+  olusturma_tarihi?: string | null
 }
 
 interface KartelaCRUDProps {
   currentUserId: number
   currentOdaId?: number
   onKartelaEklendi?: () => void
-  onKartelaGuncellendi?: () => void
-  onKartelaSilindi?: () => void
 }
 
 const KartelaCRUD: React.FC<KartelaCRUDProps> = ({ 
   currentUserId, 
   currentOdaId,
-  onKartelaEklendi,
-  onKartelaGuncellendi,
-  onKartelaSilindi 
+  onKartelaEklendi
 }) => {
   const [kartelalar, setKartelalar] = useState<Kartela[]>([])
-  const [filteredKartelalar, setFilteredKartelalar] = useState<Kartela[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showArchived, setShowArchived] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [selectedKartela, setSelectedKartela] = useState<Kartela | null>(null)
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
+
+  // İstatistikler için state
+  const [stats, setStats] = useState({
+    toplam: 0,
+    aktif: 0,
+    arsiv: 0,
+    qrli: 0
+  })
+
+  // Sayfalama için state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [showList, setShowList] = useState(false)
+  const itemsPerPage = 50
+
+  // ============ İSTATİSTİKLERİ ÇEK ============
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      // Toplam kartela sayısı
+      const { count: toplam, error: toplamError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+
+      if (toplamError) throw toplamError
+
+      // Aktif kartela sayısı (silindi = false)
+      const { count: aktif, error: aktifError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', false)
+
+      if (aktifError) throw aktifError
+
+      // Arşiv kartela sayısı (silindi = true)
+      const { count: arsiv, error: arsivError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .eq('silindi', true)
+
+      if (arsivError) throw arsivError
+
+      // QR kodlu kartela sayısı
+      const { count: qrli, error: qrliError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+        .not('karekod', 'is', null)
+
+      if (qrliError) throw qrliError
+
+      setStats({
+        toplam: toplam || 0,
+        aktif: aktif || 0,
+        arsiv: arsiv || 0,
+        qrli: qrli || 0
+      })
+    } catch (err) {
+      console.error('İstatistik çekme hatası:', err)
+    }
+  }
+
+  // ============ VERİ ÇEKME ============
+  const fetchKartelalar = async (page = currentPage) => {
+    if (!showList) return
+    
+    try {
+      setLoading(true)
+      
+      // Toplam kayıt sayısını al
+      const { count, error: countError } = await supabase
+        .from('kartelalar')
+        .select('*', { count: 'exact', head: true })
+
+      if (countError) throw countError
+      
+      setTotalCount(count || 0)
+      setTotalPages(Math.ceil((count || 0) / itemsPerPage))
+
+      // Sayfadaki kayıtları al
+      const from = (page - 1) * itemsPerPage
+      const to = from + itemsPerPage - 1
+
+      const { data, error } = await supabase
+        .from('kartelalar')
+        .select('*')
+        .order('id', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+      
+      setKartelalar(data || [])
+    } catch (err) {
+      console.error('Veri çekme hatası:', err)
+      setError('Kartelalar yüklenirken hata oluştu')
+    } finally {
+      setLoading(false)
+      setInitialLoading(false)
+    }
+  }
+
+  // Sayfa değiştiğinde verileri çek
+  useEffect(() => {
+    if (showList) {
+      fetchKartelalar(currentPage)
+    }
+  }, [currentPage, showList])
 
   // ============ LOG FONKSİYONU ============
   const islemLogla = async (
@@ -88,14 +193,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
         logData.aciklama = `HATA: ${detay} - ${hata}`
       }
 
-      if (islemTipi === 'ARSIVLEME') {
-        logData.eski_durum = 'Aktif'
-        logData.yeni_durum = 'Arşiv'
-      } else if (islemTipi === 'GERI_ALMA') {
-        logData.eski_durum = 'Arşiv'
-        logData.yeni_durum = 'Aktif'
-      }
-
       const { error: logError } = await supabase
         .from('hareket_loglari')
         .insert([logData])
@@ -105,51 +202,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
       console.error('Loglama hatası:', err)
     }
   }
-
-  // ============ VERİ ÇEKME ============
-  useEffect(() => {
-    fetchKartelalar()
-  }, [showArchived])
-
-  const fetchKartelalar = async () => {
-    try {
-      setLoading(true)
-      let query = supabase
-        .from('kartelalar')
-        .select('*')
-        .order('id', { ascending: false })
-
-      if (!showArchived) {
-        query = query.eq('silindi', false)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setKartelalar(data || [])
-      setFilteredKartelalar(data || [])
-    } catch (err) {
-      console.error('Veri çekme hatası:', err)
-      setError('Kartelalar yüklenirken hata oluştu')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ============ FİLTRELEME ============
-  useEffect(() => {
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      const filtered = kartelalar.filter(k => 
-        k.kartela_no?.toLowerCase().includes(term) ||
-        k.renk_adi?.toLowerCase().includes(term) ||
-        k.musteri_adi?.toLowerCase().includes(term)
-      )
-      setFilteredKartelalar(filtered)
-    } else {
-      setFilteredKartelalar(kartelalar)
-    }
-  }, [searchTerm, kartelalar])
 
   // ============ QR KOD İŞLEMLERİ ============
   const generateQRCode = async (kartela: Kartela) => {
@@ -183,6 +235,14 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
         `${kartela.renk_adi} (${kartela.renk_kodu}) için QR kod oluşturuldu`
       )
 
+      // İstatistikleri güncelle
+      fetchStats()
+      
+      // Listeyi güncelle
+      if (showList) {
+        fetchKartelalar(currentPage)
+      }
+
     } catch (err) {
       console.error('QR Kod oluşturma hatası:', err)
       setError('QR kod oluşturulamadı')
@@ -194,95 +254,6 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
         'QR kod oluşturma başarısız',
         err instanceof Error ? err.message : 'Bilinmeyen hata'
       )
-    }
-  }
-
-  // ============ ARŞİV İŞLEMLERİ ============
-  const handleArchive = async (kartela: Kartela) => {
-    try {
-      setLoading(true)
-      
-      const { error } = await supabase
-        .from('kartelalar')
-        .update({ 
-          silindi: true,
-          durum: 'Arşiv'
-        })
-        .eq('id', kartela.id)
-
-      if (error) throw error
-
-      await islemLogla(
-        'ARSIVLEME',
-        kartela.id,
-        kartela.kartela_no,
-        `${kartela.renk_adi} (${kartela.renk_kodu}) arşive kaldırıldı`
-      )
-
-      setSuccess('Kartela arşive kaldırıldı!')
-      fetchKartelalar()
-      if (onKartelaSilindi) onKartelaSilindi()
-    } catch (err) {
-      console.error('Arşivleme hatası:', err)
-      setError('Arşivleme başarısız')
-      
-      await islemLogla(
-        'ARSIVLEME',
-        kartela.id,
-        kartela.kartela_no,
-        'Arşivleme başarısız',
-        err instanceof Error ? err.message : 'Bilinmeyen hata'
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleRestore = async (id: number) => {
-    try {
-      setLoading(true)
-      
-      const { data: kartela, error: fetchError } = await supabase
-        .from('kartelalar')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (fetchError) throw fetchError
-
-      const { error } = await supabase
-        .from('kartelalar')
-        .update({ 
-          silindi: false,
-          durum: 'Aktif'
-        })
-        .eq('id', id)
-
-      if (error) throw error
-
-      await islemLogla(
-        'GERI_ALMA',
-        id,
-        kartela.kartela_no,
-        `${kartela.renk_adi} (${kartela.renk_kodu}) arşivden geri alındı`
-      )
-
-      setSuccess('Kartela arşivden geri alındı!')
-      fetchKartelalar()
-    } catch (err) {
-      console.error('Geri alma hatası:', err)
-      setError('Geri alma işlemi başarısız')
-      
-      const kartelaNo = kartelalar.find(k => k.id === id)?.kartela_no || 'Bilinmiyor'
-      await islemLogla(
-        'GERI_ALMA',
-        id,
-        kartelaNo,
-        'Arşivden geri alma başarısız',
-        err instanceof Error ? err.message : 'Bilinmeyen hata'
-      )
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -380,235 +351,325 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
     printWindow.document.close()
   }
 
-  if (loading && kartelalar.length === 0) {
+  // Sayfalama kontrolleri
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  if (initialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-600">Kartelalar yükleniyor...</p>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-600 text-lg">Kartelalar yükleniyor...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Başarı/Error Mesajları */}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Check className="h-5 w-5" />
-            {success}
-          </div>
-          <button onClick={() => setSuccess(null)}>
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            {error}
-          </div>
-          <button onClick={() => setError(null)}>
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
-        <div className="flex flex-col lg:flex-row gap-4 justify-between">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Kartela no, renk, müşteri ara..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Başarı/Error Mesajları */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Check className="h-5 w-5" />
+              {success}
             </div>
-            
-            <button
-              onClick={() => setShowArchived(!showArchived)}
-              className={`px-3 py-2 border rounded-lg flex items-center gap-2 ${
-                showArchived 
-                  ? 'bg-purple-50 border-purple-300 text-purple-700' 
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Archive className="h-4 w-4" />
-              {showArchived ? 'Arşivdekiler' : 'Arşiv'}
+            <button onClick={() => setSuccess(null)}>
+              <X className="h-4 w-4" />
             </button>
           </div>
+        )}
 
-          <div className="flex gap-2">
-            <Link
-              href="/dashboard/kartela/yeni"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Yeni Kartela
-            </Link>
-
-            <Link
-              href="/dashboard/kartela/loglar"
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-gray-700"
-              title="İşlem Logları"
-            >
-              <History className="h-4 w-4" />
-              Loglar
-            </Link>
-
-            <button
-              onClick={fetchKartelalar}
-              className="p-2 border rounded-lg hover:bg-gray-50 text-gray-600"
-              title="Yenile"
-            >
-              <RefreshCw className="h-5 w-5" />
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              {error}
+            </div>
+            <button onClick={() => setError(null)}>
+              <X className="h-4 w-4" />
             </button>
+          </div>
+        )}
+
+        {/* Üst Toolbar */}
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Kartela no, renk, müşteri ara..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  setShowList(!showList)
+                  if (!showList) {
+                    setCurrentPage(1)
+                  }
+                }}
+                className={`flex-1 sm:flex-none px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                  showList 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Package className="h-5 w-5" />
+                {showList ? 'Kartelalar Listeleniyor' : 'Kartelaları Listele'}
+              </button>
+
+              <Link
+                href="/dashboard/kartela/yeni"
+                className="flex-1 sm:flex-none bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+                Yeni Kartela
+              </Link>
+
+              <Link
+                href="/dashboard/kartela/loglar"
+                className="flex-1 sm:flex-none px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-gray-700 transition-colors"
+                title="İşlem Logları"
+              >
+                <History className="h-5 w-5" />
+                Loglar
+              </Link>
+
+              <button
+                onClick={() => {
+                  fetchStats()
+                  if (showList) {
+                    fetchKartelalar(currentPage)
+                  }
+                }}
+                className="p-3 border rounded-lg hover:bg-gray-50 text-gray-600 transition-colors"
+                title="Yenile"
+              >
+                <RefreshCw className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* İstatistikler - Güncel verilerle */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6 pt-6 border-t">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <span className="text-sm text-blue-600 font-medium">Toplam Kartela</span>
+              <p className="text-2xl font-bold text-blue-700">{stats.toplam.toLocaleString('tr-TR')}</p>
+            </div>
+            <div className="bg-green-50 rounded-lg p-4">
+              <span className="text-sm text-green-600 font-medium">Aktif</span>
+              <p className="text-2xl font-bold text-green-700">{stats.aktif.toLocaleString('tr-TR')}</p>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-4">
+              <span className="text-sm text-purple-600 font-medium">Arşiv</span>
+              <p className="text-2xl font-bold text-purple-700">{stats.arsiv.toLocaleString('tr-TR')}</p>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-4">
+              <span className="text-sm text-amber-600 font-medium">QR&apos;li</span>
+              <p className="text-2xl font-bold text-amber-700">{stats.qrli.toLocaleString('tr-TR')}</p>
+            </div>
           </div>
         </div>
 
-        {/* İstatistikler */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t">
-          <div>
-            <span className="text-sm text-gray-500">Toplam Kartela</span>
-            <p className="text-xl font-bold text-gray-900">{kartelalar.length}</p>
-          </div>
-          <div>
-            <span className="text-sm text-gray-500">Aktif</span>
-            <p className="text-xl font-bold text-green-600">
-              {kartelalar.filter(k => !k.silindi).length}
-            </p>
-          </div>
-          <div>
-            <span className="text-sm text-gray-500">Arşiv</span>
-            <p className="text-xl font-bold text-purple-600">
-              {kartelalar.filter(k => k.silindi).length}
-            </p>
-          </div>
-          <div>
-            <span className="text-sm text-gray-500">QR&apos;li</span>
-            <p className="text-xl font-bold text-blue-600">
-              {kartelalar.filter(k => k.karekod).length}
-            </p>
-          </div>
-        </div>
-      </div>
+        {/* Kartela Listesi - Sadece showList true ise göster */}
+        {showList && (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            {/* Sayfalama Bilgisi ve Kontrolleri */}
+            <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-sm text-gray-600">
+                Toplam <span className="font-bold">{totalCount.toLocaleString('tr-TR')}</span> kayıt, 
+                sayfa <span className="font-bold">{currentPage}</span> / <span className="font-bold">{totalPages}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                  className="p-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="İlk Sayfa"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Önceki Sayfa"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                
+                <span className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-medium">
+                  {currentPage}
+                </span>
+                
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Sonraki Sayfa"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Son Sayfa"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-      {/* Kartela Listesi - Tablo */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartela No</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renk</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Göz</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredKartelalar.map((kartela) => (
-                <tr key={kartela.id} className={`hover:bg-gray-50 ${kartela.silindi ? 'bg-gray-50 opacity-75' : ''}`}>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">{kartela.kartela_no}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-6 h-6 rounded border"
-                        style={{ backgroundColor: kartela.renk_kodu.startsWith('#') ? kartela.renk_kodu : `#${kartela.renk_kodu}` }}
-                      />
-                      <div>
-                        <div className="text-sm">{kartela.renk_adi}</div>
-                        <div className="text-xs text-gray-500">{kartela.renk_kodu}</div>
-                      </div>
+            {/* Yükleniyor Göstergesi */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-gray-600">Kartelalar yükleniyor...</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartela No</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renk</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Göz</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {kartelalar
+                        .filter(k => 
+                          !searchTerm || 
+                          k.kartela_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          k.renk_adi?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          k.musteri_adi?.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map((kartela) => (
+                        <tr key={kartela.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap font-medium">{kartela.kartela_no}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-6 h-6 rounded border"
+                                style={{ backgroundColor: kartela.renk_kodu.startsWith('#') ? kartela.renk_kodu : `#${kartela.renk_kodu}` }}
+                              />
+                              <div>
+                                <div className="text-sm">{kartela.renk_adi}</div>
+                                <div className="text-xs text-gray-500">{kartela.renk_kodu}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {kartela.musteri_adi || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {kartela.goz_sayisi ? `${kartela.goz_sayisi} göz` : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              kartela.durum === 'Aktif' ? 'bg-green-100 text-green-800' : 
+                              kartela.durum === 'Arşiv' ? 'bg-purple-100 text-purple-800' : 
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {kartela.durum || 'Aktif'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => generateQRCode(kartela)}
+                              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="QR Kod Oluştur"
+                            >
+                              <Package className="h-4 w-4" />
+                            </button>
+                            {kartela.karekod && (
+                              <span className="ml-1 text-xs text-green-600 font-medium">✓</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Link
+                              href={`/dashboard/kartela/${kartela.id}`}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block"
+                              title="Detay"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {kartelalar.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p className="text-lg">Kartela bulunamadı</p>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {kartela.musteri_adi || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {kartela.goz_sayisi ? `${kartela.goz_sayisi} göz` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      kartela.durum === 'Aktif' ? 'bg-green-100 text-green-800' : 
-                      kartela.durum === 'Arşiv' ? 'bg-purple-100 text-purple-800' : 
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {kartela.durum || 'Aktif'}
+                  )}
+                </div>
+
+                {/* Alt Sayfalama */}
+                <div className="p-4 border-t bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    Gösterilen: {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} / {totalCount.toLocaleString('tr-TR')}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => goToPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      İlk
+                    </button>
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      Önceki
+                    </button>
+                    
+                    <span className="px-4 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
+                      Sayfa {currentPage} / {totalPages}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {!kartela.silindi && (
-                      <button
-                        onClick={() => generateQRCode(kartela)}
-                        className="p-1 text-purple-600 hover:bg-purple-50 rounded"
-                        title="QR Kod Oluştur"
-                      >
-                        <Package className="h-4 w-4" />
-                      </button>
-                    )}
-                    {kartela.karekod && (
-                      <span className="ml-1 text-xs text-green-600">✓</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/dashboard/kartela/${kartela.id}`}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                        title="Detay"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                      
-                      {!kartela.silindi ? (
-                        <>
-                          <Link
-                            href={`/dashboard/kartela/${kartela.id}/duzenle`}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
-                            title="Düzenle"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleArchive(kartela)}
-                            className="p-1 text-purple-600 hover:bg-purple-50 rounded"
-                            title="Arşive Kaldır"
-                          >
-                            <Archive className="h-4 w-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => handleRestore(kartela.id)}
-                          className="p-1 text-amber-600 hover:bg-amber-50 rounded"
-                          title="Geri Al"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {filteredKartelalar.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p>Kartela bulunamadı</p>
-            </div>
-          )}
-        </div>
+                    
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      Sonraki
+                    </button>
+                    <button
+                      onClick={() => goToPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      Son
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* QR Kod Modalı */}
@@ -618,7 +679,7 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
             <div className="p-6 border-b">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Kartela QR Kodu</h2>
-                <button onClick={() => setQrModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <button onClick={() => setQrModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -659,17 +720,25 @@ const KartelaCRUD: React.FC<KartelaCRUDProps> = ({
             <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
               <button
                 onClick={() => setQrModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 Kapat
               </button>
               <button
                 onClick={handlePrint}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
               >
                 <Printer className="h-4 w-4" />
                 Yazdır
               </button>
+              <a
+                href={qrCodeDataUrl}
+                download={`kartela-${selectedKartela.kartela_no}-qr.png`}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                İndir
+              </a>
             </div>
           </div>
         </div>

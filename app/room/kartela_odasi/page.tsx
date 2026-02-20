@@ -7,8 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaTransfer from '@/components/KartelaTransfer'
-import KartelaCRUD from '@/components/kartela/KartelaCRUD' // YENİ: Import ettik!
-import { QrCode, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X } from 'lucide-react'
+import KartelaCRUD from '@/components/kartela/KartelaCRUD'
+import RenkCRUD from '@/components/kartela/RenkCRUD' // YENİ: RenkCRUD import edildi
+import { QrCode, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X, Palette } from 'lucide-react'
 
 // Supabase client
 const supabase = createClient()
@@ -17,7 +18,7 @@ const supabase = createClient()
 type UserType = Database['public']['Tables']['kullanicilar']['Row']
 type RoomType = Database['public']['Tables']['odalar']['Row']
 
-type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor' | 'kartela-crud' // YENİ: 'kartela-crud' eklendi
+type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor' | 'kartela-crud' | 'renk-crud' // YENİ: 'renk-crud' eklendi
 
 export default function KartelaOdasiPage() {
   const router = useRouter()
@@ -29,7 +30,7 @@ export default function KartelaOdasiPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
   const [fullscreenTransfer, setFullscreenTransfer] = useState(false)
   
-  // YENİ: Başarı mesajları için state
+  // Başarı mesajları için state
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function KartelaOdasiPage() {
     setActiveTab('dashboard')
   }
   
-  // YENİ: Başarı mesajını temizle
+  // Başarı mesajını temizle
   const clearSuccessMessage = () => {
     setSuccessMessage(null)
   }
@@ -269,7 +270,7 @@ export default function KartelaOdasiPage() {
         </div>
       </header>
       
-      {/* YENİ: Başarı Mesajı */}
+      {/* Başarı Mesajı */}
       {successMessage && (
         <div className="container mx-auto px-4 mt-4">
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
@@ -314,7 +315,7 @@ export default function KartelaOdasiPage() {
               Kartela Arama
             </button>
             
-            {/* YENİ: Kartela CRUD Sekmesi */}
+            {/* Kartela CRUD Sekmesi */}
             <button
               onClick={() => setActiveTab('kartela-crud')}
               className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
@@ -325,6 +326,19 @@ export default function KartelaOdasiPage() {
             >
               <Sheet className="h-4 w-4" />
               Kartela Yönetimi
+            </button>
+            
+            {/* YENİ: Renk Masası Sekmesi */}
+            <button
+              onClick={() => setActiveTab('renk-crud')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
+                activeTab === 'renk-crud' 
+                  ? 'text-purple-600 border-b-2 border-purple-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Palette className="h-4 w-4" />
+              Renk Masası
             </button>
             
             <button
@@ -397,7 +411,7 @@ export default function KartelaOdasiPage() {
               </div>
             </div>
             
-            {/* Quick Actions */}
+            {/* Quick Actions - GÜNCELLENDİ */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Hızlı İşlemler</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -419,20 +433,24 @@ export default function KartelaOdasiPage() {
                   <p className="text-sm opacity-90 mt-2">Detaylı arama yap</p>
                 </button>
                 
-                {/* YENİ: Kartela Yönetimi Hızlı Butonu */}
+                {/* Kartela Yönetimi Hızlı Butonu */}
                 <button
                   onClick={() => setActiveTab('kartela-crud')}
                   className="p-6 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg transition-all text-left"
                 >
-                  <Package className="h-8 w-8 mb-4" />
+                  <Sheet className="h-8 w-8 mb-4" />
                   <h3 className="font-bold text-lg">Kartela Yönetimi</h3>
-                  <p className="text-sm opacity-90 mt-2">Ekle, düzenle, sil, listele</p>
+                  <p className="text-sm opacity-90 mt-2">Ekle, arşivle, listele</p>
                 </button>
                 
-                <button className="p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-left">
-                  <QrCode className="h-8 w-8 mb-4" />
-                  <h3 className="font-bold text-lg">QR Üret</h3>
-                  <p className="text-sm opacity-90 mt-2">{"Yeni kartela QR'ı"}</p>
+                {/* YENİ: Renk Masası Hızlı Butonu */}
+                <button
+                  onClick={() => setActiveTab('renk-crud')}
+                  className="p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-left"
+                >
+                  <Palette className="h-8 w-8 mb-4" />
+                  <h3 className="font-bold text-lg">Renk Masası</h3>
+                  <p className="text-sm opacity-90 mt-2">Renk ekle, düzenle, listele</p>
                 </button>
               </div>
             </div>
@@ -476,7 +494,7 @@ export default function KartelaOdasiPage() {
                   onClick={() => setActiveTab('kartela-crud')}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                 >
-                  <Package className="h-4 w-4" />
+                  <Sheet className="h-4 w-4" />
                   Yönetime Git
                 </button>
               </div>
@@ -488,7 +506,7 @@ export default function KartelaOdasiPage() {
           </div>
         )}
         
-        {/* YENİ: Kartela CRUD Tab */}
+        {/* Kartela CRUD Tab - GÜNCELLENDİ (onKartelaGuncellendi kaldırıldı) */}
         {activeTab === 'kartela-crud' && (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
@@ -499,7 +517,7 @@ export default function KartelaOdasiPage() {
                     Kartela Yönetim Paneli
                   </h2>
                   <p className="text-gray-600">
-                    Kartela ekleme, düzenleme, silme, arşivleme ve listeleme işlemleri
+                    Kartela ekleme, arşivleme ve listeleme işlemleri
                   </p>
                 </div>
                 <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
@@ -510,18 +528,48 @@ export default function KartelaOdasiPage() {
             </div>
             
             <div className="p-6">
-              {/* KartelaCRUD Component'i */}
               <KartelaCRUD 
                 currentUserId={userData.id}
                 currentOdaId={roomData.id}
                 onKartelaEklendi={() => {
                   setSuccessMessage('Kartela başarıyla eklendi!')
                 }}
-                onKartelaGuncellendi={() => {
-                  setSuccessMessage('Kartela başarıyla güncellendi!')
+              />
+            </div>
+          </div>
+        )}
+        
+        {/* YENİ: Renk Masası Tab */}
+        {activeTab === 'renk-crud' && (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Palette className="h-6 w-6 text-purple-600" />
+                    Renk Masası Yönetimi
+                  </h2>
+                  <p className="text-gray-600">
+                    Renk ekleme, düzenleme, silme ve listeleme işlemleri
+                  </p>
+                </div>
+                <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
+                  <span className="text-sm text-gray-600">Personel:</span>
+                  <span className="ml-2 font-semibold text-purple-700">{userData.ad}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <RenkCRUD 
+                onRenkEklendi={() => {
+                  setSuccessMessage('Renk başarıyla eklendi!')
                 }}
-                onKartelaSilindi={() => {
-                  setSuccessMessage('Kartela arşive alındı!')
+                onRenkGuncellendi={() => {
+                  setSuccessMessage('Renk başarıyla güncellendi!')
+                }}
+                onRenkSilindi={() => {
+                  setSuccessMessage('Renk başarıyla silindi!')
                 }}
               />
             </div>
