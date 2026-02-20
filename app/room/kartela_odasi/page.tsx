@@ -534,6 +534,7 @@ export default function KartelaOdasiPage() {
                 onKartelaEklendi={() => {
                   setSuccessMessage('Kartela başarıyla eklendi!')
                 }}
+
               />
             </div>
           </div>

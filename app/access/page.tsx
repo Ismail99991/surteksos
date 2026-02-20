@@ -6,9 +6,6 @@ import RoomAccess from './components/RoomAccess'
 
 import {
   BuildingOffice2Icon,
-  ShieldCheckIcon,
-  QrCodeIcon,
-  IdentificationIcon,
   LockClosedIcon
 } from '@heroicons/react/24/outline'
 
@@ -43,103 +40,63 @@ export default function AccessPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
-      <div className="container mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="h-screen overflow-hidden bg-[radial-gradient(1200px_600px_at_20%_0%,#e2e8f0_0%,transparent_60%),radial-gradient(900px_500px_at_100%_20%,#dbeafe_0%,transparent_55%),linear-gradient(to_bottom,#ffffff,#f8fafc)]">
+      <div className="h-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-white/70 backdrop-blur border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
+              <BuildingOffice2Icon className="w-6 h-6 text-slate-800" />
+            </div>
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-slate-100 mb-5">
-            <BuildingOffice2Icon className="w-8 h-8 text-slate-700" />
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-slate-900 leading-tight truncate">
+                Kartela Takip Sistemi
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-600 truncate">
+                Güvenli oda erişimi için doğrulama gereklidir
+              </p>
+            </div>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900 mb-3">
-            Kartela Takip Sistemi
-          </h1>
-
-          <p className="text-slate-600 max-w-2xl mx-auto text-base">
-            Güvenli oda erişimi için personel ve oda doğrulaması gereklidir
-          </p>
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600 bg-white/60 backdrop-blur border border-slate-200 rounded-full px-3 py-1.5 shadow-sm">
+            <LockClosedIcon className="w-4 h-4 text-slate-700" />
+            <span className="whitespace-nowrap">Güvenli oturum • Anlık kontrol</span>
+          </div>
         </div>
 
-        {/* Main Card */}
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+        {/* Single centered card */}
+        <div className="flex-1 min-h-0 mt-6 flex">
+          <div className="w-full rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
+            <div className="px-5 sm:px-7 pt-5 sm:pt-6 pb-4 border-b border-slate-100">
+              <p className="text-xs font-medium text-slate-500 tracking-wide uppercase">
+                Erişim Paneli
+              </p>
+              <p className="text-sm text-slate-700 mt-1">
+                Kimlik ve oda doğrulamasını tamamlayın
+              </p>
+            </div>
 
-            <div className="p-6 md:p-8">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-slate-900 mb-1">
-                  Oda Erişim Kontrolü
-                </h2>
-                <p className="text-sm text-slate-500">
-                  İki adımlı yetkilendirme süreci
-                </p>
-              </div>
-
+            <div className="flex-1 min-h-0 px-5 sm:px-7 py-4">
               {/* Functional Component – untouched */}
               <RoomAccess />
             </div>
 
-            {/* Info Section */}
-            <div className="bg-slate-50 border-t border-slate-200 p-6">
-              <div className="grid md:grid-cols-3 gap-6">
-
-                <InfoItem
-                  icon={<IdentificationIcon />}
-                  title="Personel Doğrulama"
-                  description="Personel kartı barkodu ile kimlik kontrolü"
-                />
-
-                <InfoItem
-                  icon={<QrCodeIcon />}
-                  title="Oda Doğrulama"
-                  description="Odaya ait QR kod ile erişim doğrulaması"
-                />
-
-                <InfoItem
-                  icon={<ShieldCheckIcon />}
-                  title="Yetki Kontrolü"
-                  description="Sistem tarafından anlık izin denetimi"
-                />
-
+            <div className="px-5 sm:px-7 py-3 border-t border-slate-100 bg-slate-50/70">
+              <div className="flex items-center justify-between gap-3 text-[11px] sm:text-xs text-slate-600">
+                <div className="flex items-center gap-2 min-w-0">
+                  <LockClosedIcon className="w-4 h-4 text-slate-700" />
+                  <span className="truncate">Güvenli oturum yönetimi • Gerçek zamanlı erişim kontrolü</span>
+                </div>
+                <span className="hidden sm:inline whitespace-nowrap text-slate-500">
+                  v1 • Secure Access
+                </span>
               </div>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="mt-10 text-center text-sm text-slate-500 flex items-center justify-center gap-2">
-            <LockClosedIcon className="w-4 h-4" />
-            <span>
-              Güvenli oturum yönetimi • Gerçek zamanlı erişim kontrolü
-            </span>
-          </div>
         </div>
-      </div>
-    </div>
-  )
-}
 
-/* ---------- UI Helper ---------- */
-
-function InfoItem({
-  icon,
-  title,
-  description
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700">
-        <div className="w-5 h-5">{icon}</div>
-      </div>
-
-      <div>
-        <p className="font-medium text-slate-900 text-sm">{title}</p>
-        <p className="text-slate-500 text-sm leading-snug">
-          {description}
-        </p>
+        <div className="h-2" />
       </div>
     </div>
   )
