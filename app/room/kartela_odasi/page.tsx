@@ -8,7 +8,7 @@ import type { Database } from '@/types/supabase'
 import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaTransfer from '@/components/KartelaTransfer'
 import KartelaCRUD from '@/components/kartela/KartelaCRUD'
-import RenkCRUD from '@/components/kartela/RenkCRUD' // YENİ: RenkCRUD import edildi
+import RenkCRUD from '@/components/kartela/RenkCRUD'
 import { QrCode, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X, Palette } from 'lucide-react'
 
 // Supabase client
@@ -17,8 +17,30 @@ const supabase = createClient()
 // Tür tanımlamaları
 type UserType = Database['public']['Tables']['kullanicilar']['Row']
 type RoomType = Database['public']['Tables']['odalar']['Row']
+type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor' | 'kartela-crud' | 'renk-crud'
 
-type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor' | 'kartela-crud' | 'renk-crud' // YENİ: 'renk-crud' eklendi
+// Dashboard istatistik tipleri
+interface DashboardStats {
+  toplamTarama: number
+  gunlukTransfer: number
+  aktifHucresayisi: number
+  toplamKartela: number
+  bugunEklenen: number
+  kritikStok: number
+}
+
+// Son hareket tipi
+interface SonHareket {
+  id: string
+  kartela_no: string
+  renk: string
+  renk_kodu: string
+  kaynak_hucre: string
+  hedef_hucre: string
+  created_at: string
+  personel: string
+  islem_turu: 'ALIS' | 'VERIS' | 'TRANSFER'
+}
 
 export default function KartelaOdasiPage() {
   const router = useRouter()
@@ -29,6 +51,20 @@ export default function KartelaOdasiPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
   const [fullscreenTransfer, setFullscreenTransfer] = useState(false)
+  const [fullscreenKartela, setFullscreenKartela] = useState(false)
+  const [fullscreenRenk, setFullscreenRenk] = useState(false)
+  
+  // Dashboard verileri için state'ler
+  const [stats, setStats] = useState<DashboardStats>({
+    toplamTarama: 0,
+    gunlukTransfer: 0,
+    aktifHucresayisi: 0,
+    toplamKartela: 0,
+    bugunEklenen: 0,
+    kritikStok: 0
+  })
+  const [sonHareketler, setSonHareketler] = useState<SonHareket[]>([])
+  const [loadingStats, setLoadingStats] = useState(true)
   
   // Başarı mesajları için state
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -37,12 +73,112 @@ export default function KartelaOdasiPage() {
     checkSessionAndLoadData()
   }, [])
   
+  // Dashboard verilerini yükle
+  useEffect(() => {
+    if (roomData && userData && activeTab === 'dashboard') {
+      loadDashboardData()
+    }
+  }, [roomData, userData, activeTab])
+  
+  const loadDashboardData = async () => {
+    try {
+      setLoadingStats(true)
+      
+      // 1. Toplam tarama sayısı (tüm loglar)
+      const { count: taramaCount } = await supabase
+        .from('kartela_log')
+        .select('*', { count: 'exact', head: true })
+      
+      // 2. Günlük transfer (bugünkü loglar)
+      const bugun = new Date()
+      bugun.setHours(0, 0, 0, 0)
+      
+      const { count: gunlukCount } = await supabase
+        .from('kartela_log')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', bugun.toISOString())
+      
+      // 3. Aktif hücre sayısı (dolu olan hücreler)
+      const { count: hucreCount } = await supabase
+        .from('hucreler')
+        .select('*', { count: 'exact', head: true })
+        .eq('durum', 'dolu')
+        .eq('aktif', true)
+      
+      // 4. Toplam kartela sayısı
+      const { count: kartelaCount } = await supabase
+        .from('kartela')
+        .select('*', { count: 'exact', head: true })
+        .eq('aktif', true)
+      
+      // 5. Bugün eklenen kartela sayısı
+      const { count: bugunEklenenCount } = await supabase
+        .from('kartela')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', bugun.toISOString())
+      
+      // 6. Kritik stok (10'un altında)
+      const { count: kritikCount } = await supabase
+        .from('kartela')
+        .select('*', { count: 'exact', head: true })
+        .lt('miktar', 10)
+        .gt('miktar', 0)
+      
+      setStats({
+        toplamTarama: taramaCount || 0,
+        gunlukTransfer: gunlukCount || 0,
+        aktifHucresayisi: hucreCount || 0,
+        toplamKartela: kartelaCount || 0,
+        bugunEklenen: bugunEklenenCount || 0,
+        kritikStok: kritikCount || 0
+      })
+      
+      // 7. Son 10 hareketi getir
+      const { data: hareketler } = await supabase
+        .from('kartela_log')
+        .select(`
+          id,
+          kartela_no,
+          renk,
+          renk_kodu,
+          kaynak_hucre,
+          hedef_hucre,
+          created_at,
+          islem_turu,
+          kullanicilar (
+            ad
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      if (hareketler) {
+        const formattedHareketler = hareketler.map((h: any) => ({
+          id: h.id,
+          kartela_no: h.kartela_no,
+          renk: h.renk,
+          renk_kodu: h.renk_kodu,
+          kaynak_hucre: h.kaynak_hucre || '-',
+          hedef_hucre: h.hedef_hucre || '-',
+          created_at: h.created_at,
+          personel: h.kullanicilar?.ad || 'Bilinmiyor',
+          islem_turu: h.islem_turu
+        }))
+        setSonHareketler(formattedHareketler)
+      }
+      
+    } catch (error) {
+      console.error('Dashboard verileri yüklenirken hata:', error)
+    } finally {
+      setLoadingStats(false)
+    }
+  }
+  
   const checkSessionAndLoadData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // 1. Session kontrolü
       const sessionStr = localStorage.getItem('room_session')
       if (!sessionStr) {
         router.push('/access')
@@ -51,7 +187,6 @@ export default function KartelaOdasiPage() {
       
       const session = JSON.parse(sessionStr)
       
-      // 2. Session süresi kontrolü
       const expiresAt = new Date(session.expiresAt)
       if (expiresAt <= new Date()) {
         localStorage.removeItem('room_session')
@@ -59,14 +194,12 @@ export default function KartelaOdasiPage() {
         return
       }
       
-      // 3. Oda uyumluluğu kontrolü - KARTELA ODASI MI?
       if (session.roomCode !== 'kartela_odasi') {
         setError('Kartela Odasına erişim yetkiniz yok!')
         setTimeout(() => router.push('/access'), 2000)
         return
       }
       
-      // 4. Kullanıcı ve oda verilerini Supabase'den çek
       await Promise.all([
         loadUserData(session.userId),
         loadRoomData(session.roomId)
@@ -126,17 +259,49 @@ export default function KartelaOdasiPage() {
   
   const openFullscreenTransfer = () => {
     setFullscreenTransfer(true)
+    setFullscreenKartela(false)
+    setFullscreenRenk(false)
     setActiveTab('transfer')
   }
   
-  const closeFullscreenTransfer = () => {
+  const openFullscreenKartela = () => {
+    setFullscreenKartela(true)
     setFullscreenTransfer(false)
+    setFullscreenRenk(false)
+    setActiveTab('kartela-crud')
+  }
+  
+  const openFullscreenRenk = () => {
+    setFullscreenRenk(true)
+    setFullscreenTransfer(false)
+    setFullscreenKartela(false)
+    setActiveTab('renk-crud')
+  }
+  
+  const closeFullscreen = () => {
+    setFullscreenTransfer(false)
+    setFullscreenKartela(false)
+    setFullscreenRenk(false)
     setActiveTab('dashboard')
   }
   
-  // Başarı mesajını temizle
   const clearSuccessMessage = () => {
     setSuccessMessage(null)
+  }
+  
+  // Format tarih
+  const formatTarih = (tarih: string) => {
+    const now = new Date()
+    const date = new Date(tarih)
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+    
+    if (diffMins < 1) return 'Şimdi'
+    if (diffMins < 60) return `${diffMins} dakika önce`
+    if (diffHours < 24) return `${diffHours} saat önce`
+    return `${diffDays} gün önce`
   }
   
   if (loading) {
@@ -174,7 +339,6 @@ export default function KartelaOdasiPage() {
   if (fullscreenTransfer) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-        {/* Transfer Header */}
         <header className="bg-white shadow-lg border-b sticky top-0 z-50">
           <div className="container mx-auto px-6 py-4">
             <div className="flex justify-between items-center">
@@ -193,7 +357,7 @@ export default function KartelaOdasiPage() {
               
               <div className="flex items-center gap-4">
                 <button
-                  onClick={closeFullscreenTransfer}
+                  onClick={closeFullscreen}
                   className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors flex items-center gap-2"
                 >
                   <X className="h-4 w-4" />
@@ -204,28 +368,120 @@ export default function KartelaOdasiPage() {
           </div>
         </header>
         
-        {/* Tam Ekran Transfer */}
         <main className="container mx-auto px-4 py-8">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
             <KartelaTransfer 
               currentOdaId={roomData.id}
               currentUserId={userData.id}
               onSuccess={() => {
-                console.log('Transfer başarılı!')
+                setSuccessMessage('Transfer başarıyla tamamlandı!')
+                loadDashboardData() // Dashboard'u güncelle
               }}
             />
           </div>
         </main>
-        
-        {/* Transfer Footer */}
-        <footer className="mt-8 py-6 border-t bg-white">
-          <div className="container mx-auto px-6">
-            <div className="text-center text-sm text-gray-500">
-              <p>Kartela Transfer Sistemi • QR Bazlı Kartela Al/Ver • V1.0</p>
-              <p className="mt-2">Her işlem loglanır ve izlenebilir</p>
+      </div>
+    )
+  }
+  
+  // TAM EKRAN KARTELA YÖNETİMİ MODU
+  if (fullscreenKartela) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
+        <header className="bg-white shadow-lg border-b sticky top-0 z-50">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                  <Package className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Kartela Yönetim Sistemi</h1>
+                  <p className="text-gray-600">
+                    Personel: <span className="font-semibold">{userData.ad}</span> • 
+                    Oda: <span className="font-semibold">{roomData.oda_adi}</span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={closeFullscreen}
+                  className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Kapat ve Ana Ekrana Dön
+                </button>
+              </div>
             </div>
           </div>
-        </footer>
+        </header>
+        
+        <main className="container mx-auto px-4 py-8">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+            <KartelaCRUD 
+              currentUserId={userData.id}
+              currentOdaId={roomData.id}
+              onKartelaEklendi={() => {
+                setSuccessMessage('Kartela başarıyla eklendi!')
+                loadDashboardData()
+              }}
+            />
+          </div>
+        </main>
+      </div>
+    )
+  }
+  
+  // TAM EKRAN RENK MASASI MODU
+  if (fullscreenRenk) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+        <header className="bg-white shadow-lg border-b sticky top-0 z-50">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                  <Palette className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Renk Masası Yönetimi</h1>
+                  <p className="text-gray-600">
+                    Personel: <span className="font-semibold">{userData.ad}</span> • 
+                    Oda: <span className="font-semibold">{roomData.oda_adi}</span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={closeFullscreen}
+                  className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Kapat ve Ana Ekrana Dön
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="container mx-auto px-4 py-8">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+            <RenkCRUD 
+              onRenkEklendi={() => {
+                setSuccessMessage('Renk başarıyla eklendi!')
+                loadDashboardData()
+              }}
+              onRenkGuncellendi={() => {
+                setSuccessMessage('Renk başarıyla güncellendi!')
+              }}
+              onRenkSilindi={() => {
+                setSuccessMessage('Renk başarıyla silindi!')
+              }}
+            />
+          </div>
+        </main>
       </div>
     )
   }
@@ -287,7 +543,7 @@ export default function KartelaOdasiPage() {
         </div>
       )}
       
-      {/* Navigation Tabs - GÜNCELLENDİ */}
+      {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4">
           <div className="flex overflow-x-auto">
@@ -315,9 +571,8 @@ export default function KartelaOdasiPage() {
               Kartela Arama
             </button>
             
-            {/* Kartela CRUD Sekmesi */}
             <button
-              onClick={() => setActiveTab('kartela-crud')}
+              onClick={() => openFullscreenKartela()}
               className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
                 activeTab === 'kartela-crud' 
                   ? 'text-green-600 border-b-2 border-green-600' 
@@ -328,9 +583,8 @@ export default function KartelaOdasiPage() {
               Kartela Yönetimi
             </button>
             
-            {/* YENİ: Renk Masası Sekmesi */}
             <button
-              onClick={() => setActiveTab('renk-crud')}
+              onClick={() => openFullscreenRenk()}
               className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
                 activeTab === 'renk-crud' 
                   ? 'text-purple-600 border-b-2 border-purple-600' 
@@ -350,7 +604,7 @@ export default function KartelaOdasiPage() {
               }`}
             >
               <ArrowRightLeft className="h-4 w-4" />
-              Transfer (Tam Ekran)
+              Transfer
             </button>
             
             <button
@@ -369,49 +623,109 @@ export default function KartelaOdasiPage() {
       </div>
       
       <main className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Dashboard Tab */}
+        {/* Dashboard Tab - GERÇEK VERİLERLE */}
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <QrCode className="h-6 w-6 text-blue-600" />
+            {/* Quick Stats - Gerçek veriler */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <QrCode className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Toplam Tarama</p>
-                    <p className="text-2xl font-bold text-gray-900">1,248</p>
+                    <p className="text-xs text-gray-500">Toplam Tarama</p>
+                    {loadingStats ? (
+                      <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">{stats.toplamTarama.toLocaleString()}</p>
+                    )}
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-xl shadow p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <Package className="h-6 w-6 text-green-600" />
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <ArrowRightLeft className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Günlük Transfer</p>
-                    <p className="text-2xl font-bold text-gray-900">47</p>
+                    <p className="text-xs text-gray-500">Günlük Transfer</p>
+                    {loadingStats ? (
+                      <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">{stats.gunlukTransfer}</p>
+                    )}
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-xl shadow p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Home className="h-6 w-6 text-purple-600" />
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Package className="h-5 w-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Aktif Hücre</p>
-                    <p className="text-2xl font-bold text-gray-900">156</p>
+                    <p className="text-xs text-gray-500">Aktif Hücre</p>
+                    {loadingStats ? (
+                      <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">{stats.aktifHucresayisi}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Sheet className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Toplam Kartela</p>
+                    {loadingStats ? (
+                      <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">{stats.toplamKartela}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Clock className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Bugün Eklenen</p>
+                    {loadingStats ? (
+                      <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">{stats.bugunEklenen}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Kritik Stok</p>
+                    {loadingStats ? (
+                      <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">{stats.kritikStok}</p>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Quick Actions - GÜNCELLENDİ */}
+            {/* Quick Actions - Aynı kalsın */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Hızlı İşlemler</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -433,9 +747,8 @@ export default function KartelaOdasiPage() {
                   <p className="text-sm opacity-90 mt-2">Detaylı arama yap</p>
                 </button>
                 
-                {/* Kartela Yönetimi Hızlı Butonu */}
                 <button
-                  onClick={() => setActiveTab('kartela-crud')}
+                  onClick={openFullscreenKartela}
                   className="p-6 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg transition-all text-left"
                 >
                   <Sheet className="h-8 w-8 mb-4" />
@@ -443,9 +756,8 @@ export default function KartelaOdasiPage() {
                   <p className="text-sm opacity-90 mt-2">Ekle, arşivle, listele</p>
                 </button>
                 
-                {/* YENİ: Renk Masası Hızlı Butonu */}
                 <button
-                  onClick={() => setActiveTab('renk-crud')}
+                  onClick={openFullscreenRenk}
                   className="p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-left"
                 >
                   <Palette className="h-8 w-8 mb-4" />
@@ -455,23 +767,71 @@ export default function KartelaOdasiPage() {
               </div>
             </div>
             
-            {/* Recent Activity */}
+            {/* Recent Activity - Gerçek son hareketler */}
             <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Son Transferler</h2>
-              <div className="space-y-4">
-                {[1, 2, 3].map((item) => (
-                  <div key={item} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium">KRT-2024-00123</p>
-                      <p className="text-sm text-gray-500">Kırmızı • 23011737.1</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm">HCR-045 → HCR-102</p>
-                      <p className="text-xs text-gray-500">10 dakika önce</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Son Transferler</h2>
+                <button 
+                  onClick={() => setActiveTab('rapor')}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  Tümünü Gör
+                  <ArrowUpRight className="h-4 w-4" />
+                </button>
               </div>
+              
+              {loadingStats ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="h-5 w-32 bg-gray-200 animate-pulse rounded mb-2"></div>
+                        <div className="h-4 w-24 bg-gray-200 animate-pulse rounded"></div>
+                      </div>
+                      <div className="text-right">
+                        <div className="h-4 w-28 bg-gray-200 animate-pulse rounded mb-2"></div>
+                        <div className="h-3 w-20 bg-gray-200 animate-pulse rounded"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sonHareketler.length > 0 ? (
+                <div className="space-y-4">
+                  {sonHareketler.map((hareket) => (
+                    <div key={hareket.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          {hareket.kartela_no}
+                          {hareket.islem_turu === 'ALIS' && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">ALIŞ</span>
+                          )}
+                          {hareket.islem_turu === 'VERIS' && (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">VERİŞ</span>
+                          )}
+                          {hareket.islem_turu === 'TRANSFER' && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">TRANSFER</span>
+                          )}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {hareket.renk} • {hareket.renk_kodu}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm">
+                          {hareket.kaynak_hucre} → {hareket.hedef_hucre}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {hareket.personel} • {formatTarih(hareket.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Henüz hiç transfer yapılmamış
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -491,7 +851,7 @@ export default function KartelaOdasiPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setActiveTab('kartela-crud')}
+                  onClick={openFullscreenKartela}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                 >
                   <Sheet className="h-4 w-4" />
@@ -501,77 +861,6 @@ export default function KartelaOdasiPage() {
               <KartelaSearch 
                 currentRoom={roomData.oda_kodu} 
                 currentUserId={userData.id} 
-              />
-            </div>
-          </div>
-        )}
-        
-        {/* Kartela CRUD Tab - GÜNCELLENDİ (onKartelaGuncellendi kaldırıldı) */}
-        {activeTab === 'kartela-crud' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Package className="h-6 w-6 text-green-600" />
-                    Kartela Yönetim Paneli
-                  </h2>
-                  <p className="text-gray-600">
-                    Kartela ekleme, arşivleme ve listeleme işlemleri
-                  </p>
-                </div>
-                <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
-                  <span className="text-sm text-gray-600">Personel:</span>
-                  <span className="ml-2 font-semibold text-green-700">{userData.ad}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <KartelaCRUD 
-                currentUserId={userData.id}
-                currentOdaId={roomData.id}
-                onKartelaEklendi={() => {
-                  setSuccessMessage('Kartela başarıyla eklendi!')
-                }}
-
-              />
-            </div>
-          </div>
-        )}
-        
-        {/* YENİ: Renk Masası Tab */}
-        {activeTab === 'renk-crud' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Palette className="h-6 w-6 text-purple-600" />
-                    Renk Masası Yönetimi
-                  </h2>
-                  <p className="text-gray-600">
-                    Renk ekleme, düzenleme, silme ve listeleme işlemleri
-                  </p>
-                </div>
-                <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
-                  <span className="text-sm text-gray-600">Personel:</span>
-                  <span className="ml-2 font-semibold text-purple-700">{userData.ad}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <RenkCRUD 
-                onRenkEklendi={() => {
-                  setSuccessMessage('Renk başarıyla eklendi!')
-                }}
-                onRenkGuncellendi={() => {
-                  setSuccessMessage('Renk başarıyla güncellendi!')
-                }}
-                onRenkSilindi={() => {
-                  setSuccessMessage('Renk başarıyla silindi!')
-                }}
               />
             </div>
           </div>
@@ -596,7 +885,7 @@ export default function KartelaOdasiPage() {
           <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
             <p>Kartela Takip Sistemi • Kartela Odası</p>
             <p className="mt-2 md:mt-0">
-              QR Kodu: <code className="bg-gray-100 px-2 py-1 rounded">{roomData.qr_kodu || 'KARTELA-001'}</code>
+              Son Güncelleme: {new Date().toLocaleTimeString('tr-TR')}
             </p>
           </div>
         </div>
