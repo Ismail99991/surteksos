@@ -9,7 +9,7 @@ import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaTransfer from '@/components/KartelaTransfer'
 import KartelaCRUD from '@/components/kartela/KartelaCRUD'
 import RenkCRUD from '@/components/kartela/RenkCRUD'
-import { QrCode, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X, Palette } from 'lucide-react'
+import { QrCode, Clock, AlertCircle, ArrowUpRight, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X, Palette } from 'lucide-react'
 
 // Supabase client
 const supabase = createClient()
