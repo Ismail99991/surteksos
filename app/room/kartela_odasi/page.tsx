@@ -9,7 +9,20 @@ import KartelaSearch from '@/components/kartela/KartelaSearch'
 import KartelaTransfer from '@/components/KartelaTransfer'
 import KartelaCRUD from '@/components/kartela/KartelaCRUD'
 import RenkCRUD from '@/components/kartela/RenkCRUD'
-import { QrCode, Clock, AlertCircle, ArrowUpRight, ClipboardList, Sheet, Search, Package, Home, ArrowRightLeft, X, Palette } from 'lucide-react'
+import { 
+  QrCode, 
+  ClipboardList, 
+  Sheet, 
+  Search, 
+  Package, 
+  Home, 
+  ArrowRightLeft, 
+  X, 
+  Palette,
+  Clock,
+  AlertCircle,
+  ArrowUpRight
+} from 'lucide-react'
 
 // Supabase client
 const supabase = createClient()
@@ -21,9 +34,9 @@ type ActiveTab = 'search' | 'transfer' | 'dashboard' | 'rapor' | 'kartela-crud' 
 
 // Dashboard istatistik tipleri
 interface DashboardStats {
-  toplamTarama: number
-  gunlukTransfer: number
-  aktifHucresayisi: number
+  toplamHareket: number
+  gunlukHareket: number
+  aktifHucreSayisi: number
   toplamKartela: number
   bugunEklenen: number
   kritikStok: number
@@ -33,13 +46,16 @@ interface DashboardStats {
 interface SonHareket {
   id: string
   kartela_no: string
-  renk: string
-  renk_kodu: string
-  kaynak_hucre: string
-  hedef_hucre: string
-  created_at: string
-  personel: string
-  islem_turu: 'ALIS' | 'VERIS' | 'TRANSFER'
+  hareket_tipi: string
+  eski_hucre_kodu: string | null
+  yeni_hucre_kodu: string | null
+  eski_goz_sayisi: number | null
+  yeni_goz_sayisi: number | null
+  eski_durum: string | null
+  yeni_durum: string | null
+  kullanici_kodu: string | null
+  aciklama: string | null
+  tarih: string
 }
 
 export default function KartelaOdasiPage() {
@@ -56,9 +72,9 @@ export default function KartelaOdasiPage() {
   
   // Dashboard verileri için state'ler
   const [stats, setStats] = useState<DashboardStats>({
-    toplamTarama: 0,
-    gunlukTransfer: 0,
-    aktifHucresayisi: 0,
+    toplamHareket: 0,
+    gunlukHareket: 0,
+    aktifHucreSayisi: 0,
     toplamKartela: 0,
     bugunEklenen: 0,
     kritikStok: 0
@@ -84,19 +100,19 @@ export default function KartelaOdasiPage() {
     try {
       setLoadingStats(true)
       
-      // 1. Toplam tarama sayısı (tüm loglar)
-      const { count: taramaCount } = await supabase
+      // 1. Toplam hareket sayısı
+      const { count: toplamHareket } = await supabase
         .from('hareket_loglari')
         .select('*', { count: 'exact', head: true })
       
-      // 2. Günlük transfer (bugünkü loglar)
+      // 2. Günlük hareket (bugünkü loglar)
       const bugun = new Date()
       bugun.setHours(0, 0, 0, 0)
       
-      const { count: gunlukCount } = await supabase
-        .from('kartela_log')
+      const { count: gunlukHareket } = await supabase
+        .from('hareket_loglari')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', bugun.toISOString())
+        .gte('tarih', bugun.toISOString())
       
       // 3. Aktif hücre sayısı (dolu olan hücreler)
       const { count: hucreCount } = await supabase
@@ -125,9 +141,9 @@ export default function KartelaOdasiPage() {
         .gt('miktar', 0)
       
       setStats({
-        toplamTarama: taramaCount || 0,
-        gunlukTransfer: gunlukCount || 0,
-        aktifHucresayisi: hucreCount || 0,
+        toplamHareket: toplamHareket || 0,
+        gunlukHareket: gunlukHareket || 0,
+        aktifHucreSayisi: hucreCount || 0,
         toplamKartela: kartelaCount || 0,
         bugunEklenen: bugunEklenenCount || 0,
         kritikStok: kritikCount || 0
@@ -135,36 +151,26 @@ export default function KartelaOdasiPage() {
       
       // 7. Son 10 hareketi getir
       const { data: hareketler } = await supabase
-        .from('kartela_log')
+        .from('hareket_loglari')
         .select(`
           id,
           kartela_no,
-          renk,
-          renk_kodu,
-          kaynak_hucre,
-          hedef_hucre,
-          created_at,
-          islem_turu,
-          kullanicilar (
-            ad
-          )
+          hareket_tipi,
+          eski_hucre_kodu,
+          yeni_hucre_kodu,
+          eski_goz_sayisi,
+          yeni_goz_sayisi,
+          eski_durum,
+          yeni_durum,
+          kullanici_kodu,
+          aciklama,
+          tarih
         `)
-        .order('created_at', { ascending: false })
+        .order('tarih', { ascending: false })
         .limit(10)
       
       if (hareketler) {
-        const formattedHareketler = hareketler.map((h: any) => ({
-          id: h.id,
-          kartela_no: h.kartela_no,
-          renk: h.renk,
-          renk_kodu: h.renk_kodu,
-          kaynak_hucre: h.kaynak_hucre || '-',
-          hedef_hucre: h.hedef_hucre || '-',
-          created_at: h.created_at,
-          personel: h.kullanicilar?.ad || 'Bilinmiyor',
-          islem_turu: h.islem_turu
-        }))
-        setSonHareketler(formattedHareketler)
+        setSonHareketler(hareketler as SonHareket[])
       }
       
     } catch (error) {
@@ -304,6 +310,25 @@ export default function KartelaOdasiPage() {
     return `${diffDays} gün önce`
   }
   
+  // Hareket tipine göre renk ve etiket
+  const getHareketTipiInfo = (tip: string) => {
+    switch(tip?.toLowerCase()) {
+      case 'transfer':
+        return { renk: 'bg-blue-100 text-blue-700', etiket: 'TRANSFER' }
+      case 'alis':
+      case 'giris':
+        return { renk: 'bg-green-100 text-green-700', etiket: 'GİRİŞ' }
+      case 'veris':
+      case 'cikis':
+        return { renk: 'bg-red-100 text-red-700', etiket: 'ÇIKIŞ' }
+      case 'duzenle':
+      case 'guncelle':
+        return { renk: 'bg-yellow-100 text-yellow-700', etiket: 'DÜZENLE' }
+      default:
+        return { renk: 'bg-gray-100 text-gray-700', etiket: tip || 'İŞLEM' }
+    }
+  }
+  
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
@@ -375,7 +400,7 @@ export default function KartelaOdasiPage() {
               currentUserId={userData.id}
               onSuccess={() => {
                 setSuccessMessage('Transfer başarıyla tamamlandı!')
-                loadDashboardData() // Dashboard'u güncelle
+                loadDashboardData()
               }}
             />
           </div>
@@ -572,7 +597,7 @@ export default function KartelaOdasiPage() {
             </button>
             
             <button
-              onClick={() => openFullscreenKartela()}
+              onClick={openFullscreenKartela}
               className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
                 activeTab === 'kartela-crud' 
                   ? 'text-green-600 border-b-2 border-green-600' 
@@ -584,7 +609,7 @@ export default function KartelaOdasiPage() {
             </button>
             
             <button
-              onClick={() => openFullscreenRenk()}
+              onClick={openFullscreenRenk}
               className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
                 activeTab === 'renk-crud' 
                   ? 'text-purple-600 border-b-2 border-purple-600' 
@@ -634,11 +659,11 @@ export default function KartelaOdasiPage() {
                     <QrCode className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Toplam Tarama</p>
+                    <p className="text-xs text-gray-500">Toplam Hareket</p>
                     {loadingStats ? (
                       <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
                     ) : (
-                      <p className="text-xl font-bold text-gray-900">{stats.toplamTarama.toLocaleString()}</p>
+                      <p className="text-xl font-bold text-gray-900">{stats.toplamHareket.toLocaleString()}</p>
                     )}
                   </div>
                 </div>
@@ -650,11 +675,11 @@ export default function KartelaOdasiPage() {
                     <ArrowRightLeft className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Günlük Transfer</p>
+                    <p className="text-xs text-gray-500">Günlük Hareket</p>
                     {loadingStats ? (
                       <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
                     ) : (
-                      <p className="text-xl font-bold text-gray-900">{stats.gunlukTransfer}</p>
+                      <p className="text-xl font-bold text-gray-900">{stats.gunlukHareket}</p>
                     )}
                   </div>
                 </div>
@@ -670,7 +695,7 @@ export default function KartelaOdasiPage() {
                     {loadingStats ? (
                       <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
                     ) : (
-                      <p className="text-xl font-bold text-gray-900">{stats.aktifHucresayisi}</p>
+                      <p className="text-xl font-bold text-gray-900">{stats.aktifHucreSayisi}</p>
                     )}
                   </div>
                 </div>
@@ -770,7 +795,7 @@ export default function KartelaOdasiPage() {
             {/* Recent Activity - Gerçek son hareketler */}
             <div className="bg-white rounded-xl shadow p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Son Transferler</h2>
+                <h2 className="text-xl font-bold text-gray-900">Son Hareketler</h2>
                 <button 
                   onClick={() => setActiveTab('rapor')}
                   className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -797,39 +822,39 @@ export default function KartelaOdasiPage() {
                 </div>
               ) : sonHareketler.length > 0 ? (
                 <div className="space-y-4">
-                  {sonHareketler.map((hareket) => (
-                    <div key={hareket.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div>
-                        <p className="font-medium flex items-center gap-2">
-                          {hareket.kartela_no}
-                          {hareket.islem_turu === 'ALIS' && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">ALIŞ</span>
+                  {sonHareketler.map((hareket) => {
+                    const tipInfo = getHareketTipiInfo(hareket.hareket_tipi)
+                    return (
+                      <div key={hareket.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div>
+                          <p className="font-medium flex items-center gap-2">
+                            {hareket.kartela_no}
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${tipInfo.renk}`}>
+                              {tipInfo.etiket}
+                            </span>
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {hareket.eski_hucre_kodu || '-'} → {hareket.yeni_hucre_kodu || '-'}
+                            {hareket.aciklama && ` • ${hareket.aciklama}`}
+                          </p>
+                          {(hareket.eski_goz_sayisi !== null || hareket.yeni_goz_sayisi !== null) && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Göz: {hareket.eski_goz_sayisi || 0} → {hareket.yeni_goz_sayisi || 0}
+                            </p>
                           )}
-                          {hareket.islem_turu === 'VERIS' && (
-                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">VERİŞ</span>
-                          )}
-                          {hareket.islem_turu === 'TRANSFER' && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">TRANSFER</span>
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {hareket.renk} • {hareket.renk_kodu}
-                        </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">
+                            {hareket.kullanici_kodu || 'Bilinmiyor'} • {formatTarih(hareket.tarih)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm">
-                          {hareket.kaynak_hucre} → {hareket.hedef_hucre}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {hareket.personel} • {formatTarih(hareket.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
-                  Henüz hiç transfer yapılmamış
+                  Henüz hiç hareket kaydı yok
                 </div>
               )}
             </div>
