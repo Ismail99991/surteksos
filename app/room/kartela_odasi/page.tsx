@@ -123,13 +123,13 @@ export default function KartelaOdasiPage() {
       
       // 4. Toplam kartela sayısı
       const { count: kartelaCount } = await supabase
-        .from('kartela')
+        .from('kartelalar')
         .select('*', { count: 'exact', head: true })
         .eq('aktif', true)
       
       // 5. Bugün eklenen kartela sayısı
       const { count: bugunEklenenCount } = await supabase
-        .from('kartela')
+        .from('kartelalar')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', bugun.toISOString())
       
