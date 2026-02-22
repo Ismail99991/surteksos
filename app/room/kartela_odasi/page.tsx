@@ -86,7 +86,7 @@ export default function KartelaOdasiPage() {
       
       // 1. Toplam tarama sayısı (tüm loglar)
       const { count: taramaCount } = await supabase
-        .from('kartela_log')
+        .from('hareket_loglari')
         .select('*', { count: 'exact', head: true })
       
       // 2. Günlük transfer (bugünkü loglar)
