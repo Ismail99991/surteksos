@@ -135,7 +135,7 @@ export default function KartelaOdasiPage() {
       
       // 6. Kritik stok (10'un altında)
       const { count: kritikCount } = await supabase
-        .from('kartela')
+        .from('kartelalar')
         .select('*', { count: 'exact', head: true })
         .lt('miktar', 10)
         .gt('miktar', 0)
